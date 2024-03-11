@@ -68,6 +68,11 @@
                   <platforms>
                     <platform>${docker.platforms}</platform>
                   </platforms>
+                  <secret>
+                    <files>
+                      <nuxeo-public>nuxeo-public.repo</nuxeo-public>
+                    </files>
+                  </secret>
                 </buildx>
               </build>
             </image>
