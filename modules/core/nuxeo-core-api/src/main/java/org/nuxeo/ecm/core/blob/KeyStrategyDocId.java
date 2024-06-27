@@ -18,6 +18,8 @@
  */
 package org.nuxeo.ecm.core.blob;
 
+import java.util.regex.Pattern;
+
 import org.nuxeo.ecm.core.api.NuxeoException;
 
 /**
@@ -26,6 +28,10 @@ import org.nuxeo.ecm.core.api.NuxeoException;
  * @since 11.1
  */
 public class KeyStrategyDocId implements KeyStrategy {
+
+    // Matches "12051767-a926-425c-a7e0-dcdf02c0bc04" and "12051767-a926-425c-a7e0-dcdf02c0bc04-files_files-1-file"
+    protected static final Pattern UUID_REGEX = Pattern.compile(
+            "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(-.+)?$");
 
     private static final KeyStrategyDocId INSTANCE = new KeyStrategyDocId();
 
@@ -78,4 +84,10 @@ public class KeyStrategyDocId implements KeyStrategy {
     public int hashCode() {
         return 0;
     }
+
+    @Override
+    public boolean isValidKey(String key) {
+        return UUID_REGEX.matcher(key).matches();
+    }
+
 }

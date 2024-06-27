@@ -18,6 +18,7 @@
  */
 package org.nuxeo.ecm.core.blob;
 
+import static org.nuxeo.ecm.core.blob.KeyStrategy.VER_SEP;
 import static org.nuxeo.runtime.model.Descriptor.UNIQUE_DESCRIPTOR_ID;
 
 import java.io.IOException;
@@ -524,7 +525,7 @@ public class DocumentBlobManagerComponent extends DefaultComponent implements Do
         boolean hasPrefix = colon > 0;
         String defaultProviderId = getBlobDispatcher().getBlobProvider(repositoryName);
         String providerId;
-        Set<String> queryBlobKeys = new HashSet<String>();
+        Set<String> queryBlobKeys = new HashSet<>();
         queryBlobKeys.add(key);
         String blobId = hasPrefix ? key.substring(colon + 1, key.length()) : key;
         if (hasPrefix) {
@@ -540,7 +541,9 @@ public class DocumentBlobManagerComponent extends DefaultComponent implements Do
         }
         if (hasSharedStorage()) {
             // With shared storage, we must ensure that the blob is not referenced by any provider
-            getBlobDispatcher().getBlobProviderIds().forEach(pid -> queryBlobKeys.add(pid + ":" + blobId));
+            for (String pid : getBlobDispatcher().getBlobProviderIds()) {
+                queryBlobKeys.add(pid + ":" + blobId);
+            }
         }
         BlobProvider blobProvider = getBlobProvider(providerId);
         if (blobProvider == null) {
@@ -555,6 +558,11 @@ public class DocumentBlobManagerComponent extends DefaultComponent implements Do
         if (!blobStoreProvider.isValidKey(key)) {
             log.debug("Cannot delete invalid blob key: {} for provider: {}", key, providerId);
             return false;
+        }
+        if (blobStoreProvider.getKeyStrategy() instanceof KeyStrategyDocId) {
+            // means blob versioning could be enabled
+            // if key looks like "key1@version1", check also for "key1" reference
+            denormalizeKeySuffix(queryBlobKeys);
         }
 
         boolean canBeDeleted = TransactionHelper.runInTransaction(
@@ -583,6 +591,24 @@ public class DocumentBlobManagerComponent extends DefaultComponent implements Do
             log.info("Blob: {} from repository: {}, provider: {} can be deleted", key, repositoryName, providerId);
         }
         return true;
+    }
+
+    /**
+     * For any suffixed key in the given set, also add the unsuffixed key.
+     *
+     * <pre>
+     * ["key1@version1"] -> ["key1", "key1@version1"]
+     * </pre>
+     */
+    protected static void denormalizeKeySuffix(Set<String> queryBlobKeys) {
+        Set<String> res = new HashSet<>();
+        queryBlobKeys.forEach(k -> {
+            var verSep = k.indexOf(VER_SEP);
+            if (verSep > 0) {
+                res.add(k.substring(0, verSep));
+            }
+        });
+        queryBlobKeys.addAll(res);
     }
 
     @Override

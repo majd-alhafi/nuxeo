@@ -24,7 +24,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -57,11 +56,11 @@ import org.nuxeo.runtime.test.runner.FeaturesRunner;
 @Features(CoreFeature.class)
 public abstract class AbstractTestBlobScroll {
 
-    protected final static String CONTENT = "hello world";
+    protected static final String CONTENT = "hello world";
 
-    protected final static int SIZE = 3;
+    protected static final int SIZE = 3;
 
-    protected final static int NB_FILE = SIZE * 4 - 1;
+    protected static final int NB_FILE = SIZE * 4 - 1;
 
     @Inject
     protected CoreFeature coreFeature;
@@ -79,7 +78,7 @@ public abstract class AbstractTestBlobScroll {
     protected abstract String getScrollName();
 
     @Test
-    public void testBlobScroll() throws IOException {
+    public void testBlobScroll() {
         Map<String, Long> expected = new TreeMap<>();
         for (int i = 0; i < NB_FILE; i++) {
             DocumentModel doc = session.createDocumentModel("/", "doc" + i, "File");
@@ -107,8 +106,7 @@ public abstract class AbstractTestBlobScroll {
                     actual.stream()
                           .collect(Collectors.toMap(AbstractBlobScroll::getBlobKey, AbstractBlobScroll::getBlobSize)));
             assertFalse(scroll.hasNext());
-            assertThrows("Should not be able to scroll beyond limit.", NoSuchElementException.class,
-                    () -> scroll.next());
+            assertThrows("Should not be able to scroll beyond limit.", NoSuchElementException.class, scroll::next);
         }
 
         request = GenericScrollRequest.builder(getScrollName(), getProviderId()).size(200).build();

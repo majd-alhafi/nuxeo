@@ -104,8 +104,17 @@ public abstract class BlobStoreBlobProvider extends AbstractBlobProvider {
      */
     public boolean isValidKey(String key) {
         String blobKey = stripBlobKeyPrefix(key);
-        if (getKeyStrategy() instanceof KeyStrategyDocId ksdi && this.store.hasVersioning()) {
-            return blobKey.indexOf(VER_SEP) >= 0;
+        if (getKeyStrategy() instanceof KeyStrategyDocId ksdi) {
+            if (!this.store.hasVersioning()) {
+                return ksdi.isValidKey(blobKey);
+            } else {
+                var verSep = blobKey.indexOf(VER_SEP);
+                if (verSep < 0) {
+                    return false;
+                } else {
+                    return ksdi.isValidKey(blobKey.substring(0, verSep));
+                }
+            }
         }
         return getKeyStrategy().isValidKey(blobKey);
     }
