@@ -1474,6 +1474,9 @@ public class PersistenceContext {
         getHierSelectionContext(complexProp).recordRemoved(hierFragment);
         hierFragment.put(Model.HIER_PARENT_KEY, parentId);
         getHierSelectionContext(complexProp).recordExisting(hierFragment, true);
+        // pos fixup
+        Long pos = getNextPos(parentId, false);
+        hierFragment.put(Model.HIER_CHILD_POS_KEY, pos);
         // path invalidated
         source.path = null;
     }
