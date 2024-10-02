@@ -653,14 +653,14 @@ public class MongoDBConnection extends DBSConnectionBase {
             Object value2, Set<String> ignored) {
         Map<String, Object> comparatorAndValue;
         switch (operator) {
-        case IN:
-            comparatorAndValue = Map.of(MongoDBOperators.IN, value2);
-            break;
-        case NOT_IN:
-            comparatorAndValue = Map.of(MongoDBOperators.NIN, value2);
-            break;
-        default:
-            throw new IllegalArgumentException(String.format("Unknown operator: %s", operator));
+            case IN:
+                comparatorAndValue = Map.of(MongoDBOperators.IN, value2);
+                break;
+            case NOT_IN:
+                comparatorAndValue = Map.of(MongoDBOperators.NIN, value2);
+                break;
+            default:
+                throw new IllegalArgumentException(String.format("Unknown operator: %s", operator));
         }
         Document filter = new Document();
         converter.putToBson(filter, key1, value1);
