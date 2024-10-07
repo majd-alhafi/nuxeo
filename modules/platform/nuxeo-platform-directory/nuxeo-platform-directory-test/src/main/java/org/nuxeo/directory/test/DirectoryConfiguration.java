@@ -36,9 +36,9 @@ public class DirectoryConfiguration {
 
     public static final String DIRECTORY_MONGODB = "mongodb";
 
-    public static final String SQL_TEMPLATE_CONTRIB = "OSGI-INF/test-directory-sql-contrib.xml";
+    public static final String SQL_TEMPLATE_CONTRIB = "OSGI-INF/directory-test-sql-contrib.xml";
 
-    public static final String MONGODB_TEMPLATE_CONTRIB = "OSGI-INF/test-directory-mongodb-contrib.xml";
+    public static final String MONGODB_TEMPLATE_CONTRIB = "OSGI-INF/directory-test-mongodb-contrib.xml";
 
     protected String directoryType;
 
@@ -59,7 +59,7 @@ public class DirectoryConfiguration {
         };
 
         RuntimeHarness harness = runner.getFeature(RuntimeFeature.class).getHarness();
-        harness.deployContrib("org.nuxeo.ecm.directory.tests", contribName);
+        harness.deployContrib("org.nuxeo.directory.test", contribName);
     }
 
     public void init() {
