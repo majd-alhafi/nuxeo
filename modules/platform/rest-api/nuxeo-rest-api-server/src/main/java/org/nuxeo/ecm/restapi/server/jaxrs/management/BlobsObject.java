@@ -22,6 +22,7 @@ package org.nuxeo.ecm.restapi.server.jaxrs.management;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 import static org.nuxeo.ecm.core.action.GarbageCollectOrphanBlobsAction.ACTION_NAME;
 import static org.nuxeo.ecm.core.action.GarbageCollectOrphanBlobsAction.DRY_RUN_PARAM;
+import static org.nuxeo.ecm.core.action.GarbageCollectOrphanBlobsAction.RECORDS_PARAM;
 import static org.nuxeo.ecm.core.api.security.SecurityConstants.SYSTEM_USERNAME;
 
 import javax.ws.rs.DELETE;
@@ -59,13 +60,14 @@ public class BlobsObject extends AbstractResource<ResourceTypeImpl> {
     @DELETE
     @Path("orphaned")
     public BulkStatus garbageCollectBlobs(@QueryParam(value = DRY_RUN_PARAM) boolean dryRun,
-            @QueryParam(value = "queryLimit") long queryLimit) {
+            @QueryParam(value = "queryLimit") long queryLimit, @QueryParam(value = RECORDS_PARAM) boolean records) {
         String repository = ctx.getCoreSession().getRepositoryName();
         BulkService bulkService = Framework.getService(BulkService.class);
         Builder builder = new Builder(ACTION_NAME, repository,
                 SYSTEM_USERNAME).repository(repository)
                                 .useGenericScroller()
                                 .param(DRY_RUN_PARAM, dryRun)
+                                .param(RECORDS_PARAM, records)
                                 .setExclusive(true)
                                 .scroller(RepositoryBlobScroll.SCROLL_NAME);
         if (queryLimit > 0) {
