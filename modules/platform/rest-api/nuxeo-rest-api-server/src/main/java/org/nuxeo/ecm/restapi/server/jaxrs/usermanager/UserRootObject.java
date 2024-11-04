@@ -19,6 +19,7 @@
 package org.nuxeo.ecm.restapi.server.jaxrs.usermanager;
 
 import static javax.servlet.http.HttpServletResponse.SC_BAD_REQUEST;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 
 import java.util.List;
 
@@ -74,7 +75,7 @@ public class UserRootObject extends AbstractUMRootObject<NuxeoPrincipal> {
     }
 
     private void checkPrincipalHasAName(NuxeoPrincipal principal) {
-        if (principal.getName() == null) {
+        if (isBlank(principal.getName())) {
             throw new NuxeoException("User MUST have a name", SC_BAD_REQUEST);
         }
     }
