@@ -101,6 +101,9 @@ public abstract class BaseVideoConversionConverter extends CommandLineBasedConve
         long width = videoInfo.getWidth();
         long height = videoInfo.getHeight();
         long newHeight = (Long) parameters.get("height");
+        if (height == 0) {
+            throw new ConversionException("Unable to convert video, its height is equal to 0");
+        }
 
         long newWidth = width * newHeight / height;
         if (newWidth % 2 != 0) {
