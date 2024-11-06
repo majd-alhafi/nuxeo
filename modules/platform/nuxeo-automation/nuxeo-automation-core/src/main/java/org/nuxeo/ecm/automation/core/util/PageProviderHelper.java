@@ -400,7 +400,7 @@ public class PageProviderHelper {
      * @since 2023.18
      */
     protected static String getTermClause(String field, String key) {
-        return field + "='" + key + "'";
+        return field + "='" + StringUtils.replace(key, "'", "\\'") + "'";
     }
 
     protected static String getRangeClause(String field, BucketRange bucketRange) {

@@ -264,4 +264,27 @@ public class TestBulkActionWithAggregates {
         assertEquals(1, status.getProcessed());
     }
 
+    // NXP-32905
+    @Test
+    public void testAggregateBucketWithQuote() throws OperationException, InterruptedException {
+        // Create a document with a "nature" value containing quote to check that querying it is possible
+        DocumentModel doc = session.createDocumentModel("/", "bobFile", "File");
+        doc.setPropertyValue("dc:nature", "bob's garden");
+        session.createDocument(doc);
+        transactionalFeature.nextTransaction();
+
+        Map<String, Serializable> params = new HashMap<>();
+        params.put("action", SetPropertiesAction.ACTION_NAME);
+        params.put("providerName", "BULK_ACTION_WITH_AGGREGATES");
+        Properties namedParameters = new Properties();
+        namedParameters.put("nature_agg", "[\"bob's garden\"]");
+        params.put("namedParameters", namedParameters);
+
+        // Make sure that the bulk action runs on the document from the bucket matching the selected "nature" value
+        BulkStatus result = (BulkStatus) automationService.run(ctx, BulkRunAction.ID, params);
+        assertTrue(ERROR_MESSAGE, bulkService.await(result.getId(), Duration.ofSeconds(60)));
+        BulkStatus status = bulkService.getStatus(result.getId());
+        // bobFile
+        assertEquals(1, status.getProcessed());
+    }
 }
