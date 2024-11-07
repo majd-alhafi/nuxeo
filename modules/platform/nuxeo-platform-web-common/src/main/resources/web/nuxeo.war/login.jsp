@@ -9,7 +9,6 @@
 <%@ page import="org.joda.time.DateTime"%>
 <%@ page import="org.nuxeo.ecm.core.api.repository.RepositoryManager"%>
 <%@ page import="org.nuxeo.ecm.platform.ui.web.auth.LoginScreenHelper"%>
-<%@ page import="org.nuxeo.ecm.platform.web.common.MobileBannerHelper"%>
 <%@ page import="org.nuxeo.ecm.platform.ui.web.auth.NXAuthConstants"%>
 <%@ page import="org.nuxeo.ecm.platform.ui.web.auth.service.LoginProviderLink"%>
 <%@ page import="org.nuxeo.ecm.platform.ui.web.auth.service.LoginScreenConfig"%>
@@ -68,7 +67,6 @@ boolean hasVideos = screenConfig.hasVideos();
 String muted = screenConfig.getVideoMuted() ? "muted " : "";
 String loop = screenConfig.getVideoLoop() ? "loop " : "";
 
-boolean displayMobileBanner = LoginScreenHelper.getDisplayMobileBanner(request);
 %>
 
 <html class="no-js" lang="<%= selectedLanguage %>">
@@ -88,9 +86,6 @@ if (selectedLanguage != null) { %>
 <link rel="shortcut icon" type="image/x-icon" href="<%=context%>/icons/favicon.ico" />
 <script type="text/javascript" src="<%=context%>/scripts/detect_timezone.js"></script>
 <script type="text/javascript" src="<%=context%>/scripts/nxtimezone.js"></script>
-<% if (displayMobileBanner) { %>
-<script type="text/javascript" src="<%=context%>/scripts/mobile-banner.js"></script>
-<% } %>
 <script type="text/javascript">
   nxtz.resetTimeZoneCookieIfNotSet();
 </script>
@@ -227,10 +222,6 @@ if (selectedLanguage != null) { %>
     margin: 0 56px;
     max-width: <%=loginBoxWidth%>;
     width: 100%;
-  }
-
-  .mobile-apps {
-    display: none;
   }
 
   .main {
@@ -392,50 +383,6 @@ if (selectedLanguage != null) { %>
     width: 100%;
   }
 
-  <% if (displayMobileBanner) { %>
-  /* =Mobile Banner */
-  #mobileBanner {
-    /* set to block to display the mobile banner */
-    display: none;
-    margin-top: -1rem;
-    padding: 0 0 0.6rem;
-    text-align: center;
-  }
-
-  a.mobileAppLink {
-    -webkit-appearance: none;
-       -moz-appearance: none;
-            appearance: none;
-    background-color: #fff;
-    border: 1px solid #000;
-    border-radius: 4px;
-    color: #000;
-    cursor: pointer;
-    display: inline-block;
-    font-weight: 600;
-    letter-spacing: 0.1px;
-    line-height: 1.5;
-    padding: 0.375rem 1.25rem;
-    text-decoration: none;
-    transition: background-color 0.2s ease, border-color 0.2s ease;
-  }
-  a.mobileAppLink:hover {
-    background-color: #bcbfbf;
-    border-color: #4a4a4a;
-  }
-  
-  <% } %>
-
-  .show-for-ios,
-  .show-for-android {
-    display: none;
-  }
-
-  .is-ios .show-for-ios,
-  .is-android .show-for-android {
-    display: inline;
-  }
-
   /* Mobile devices */
   @media all and (max-width: 850px) {
     body {
@@ -446,13 +393,6 @@ if (selectedLanguage != null) { %>
 
     .container {
       background: none;
-    }
-
-    .mobile-apps {
-      align-items: center;
-      display: flex;
-      flex: 1 1 auto;
-      justify-content: center;
     }
 
     .news,
@@ -562,20 +502,9 @@ if (selectedLanguage != null) { %>
         onload="javascript:this.style.visibility='visible';"
         data-src="<%=iframeUrl%>"></iframe>
     </div>
+
     <% } %>
   </section>
-  <div class="mobile-apps">
-    <div>
-      <a href="https://itunes.apple.com/app/nuxeo/id1103802613" target="_blank" rel="noopener" class="show-for-ios">
-        <img class="app-icons" src="https://www.nuxeo.com/assets/imgs/icons/app-store.svg" alt="Apple App Store"
-          height="45" />
-      </a>
-      <a href="https://play.google.com/store/apps/details?id=com.nuxeomobile" target="_blank" rel="noopener" class="show-for-android">
-        <img class="app-icons" src="https://www.nuxeo.com/assets/imgs/icons/google-play-badge.png" alt="Google Play"
-          height="45" />
-      </a>
-    </div>
-  </div>
   <footer>
     <fmt:message bundle="${messages}" key="label.login.copyright">
       <fmt:param value="<%=currentYear %>" />
@@ -585,65 +514,6 @@ if (selectedLanguage != null) { %>
     <%=productVersion%>
   </footer>
 </div>
-<% if (displayMobileBanner) {
-    String androidApplicationURL = MobileBannerHelper.getURLForAndroidApplication(request);
-    String iOSApplicationURL = MobileBannerHelper.getURLForIOSApplication(request);
-    String appStoreURL = MobileBannerHelper.getAppStoreURL();
-    RepositoryManager repositoryManager = Framework.getService(RepositoryManager.class);
-    String defaultRepositoryName = repositoryManager.getDefaultRepositoryName();
-
-    String requestedUrlFragment = null;
-    Cookie[] cookies = request.getCookies();
-    if (cookies != null) {
-        for (Cookie cookie : cookies) {
-            if (NXAuthConstants.START_PAGE_FRAGMENT_KEY.equals(cookie.getName())) {
-                requestedUrlFragment = StringEscapeUtils.escapeEcmaScript(cookie.getValue());
-            }
-        }
-    }
-%>
-<div id="mobileBanner">
-  <a id="androidAppLink" class="mobileAppLink" href="<%=androidApplicationURL%>">
-    <fmt:message bundle="${messages}" key="label.mobile.openInApp" />
-  </a>
-  <a id="iOSAppLink" class="mobileAppLink"
-    data-action="<%=iOSApplicationURL%>"
-    onclick="nuxeo.mobile.openIOSAppOrAppStore(this.getAttribute('data-action'), '<%=appStoreURL%>');">
-    <fmt:message bundle="${messages}" key="label.mobile.openInApp" />
-  </a>
-</div>
-
-<script type="text/javascript">
-  // Build mobile app links if the mobile banner is displayed
-  <% if (StringUtils.isNotBlank(requestedUrlFragment)) { %>
-
-  var urlFragment = decodeURIComponent('<%=requestedUrlFragment%>');
-  var docPart;
-  if (urlFragment.startsWith('!/browse')) {
-    // no repository name for 'browse' URL
-    docPart = urlFragment.replace('!/browse/', '<%=defaultRepositoryName%>/path/');
-  } else {
-    // !/doc/ URL
-    var parts = urlFragment.split('/');
-    if (parts.length === 3) {
-      // no server in URL
-      docPart = "<%=defaultRepositoryName%>/id/" + parts[2];
-    } else if (parts.length === 4) {
-      docPart = parts[2] + "/id/" + parts[3];
-    }
-  }
-
-  if (docPart) {
-    var androidAppLink = document.getElementById('androidAppLink');
-    var iOSAppLink = document.getElementById('iOSAppLink');
-    androidAppLink.href += docPart;
-    iOSAppLink.setAttribute('data-action', iOSAppLink.getAttribute('data-action') + docPart);
-  }
-
-  nuxeo.mobile.displayMobileBanner('mobileBanner', 'block', 'androidAppLink', 'iOSAppLink');
-  <% } %>
-</script>
-<% } %>
 
 <script type="text/javascript">
   document.getElementById('username').focus();
@@ -655,20 +525,6 @@ if (selectedLanguage != null) { %>
     if (newsIframe) {
       newsIframe.src = newsIframe.getAttribute('data-src');
     }
-  }
-  <% } %>
-
-  <% if (displayMobileBanner) { %>
-  if (window.matchMedia("(max-device-width: 850px)").matches) {
-    // Add classes for app stores
-    var htmlClasses = [];
-    if (/iPhone|iPad|iPod/.test(window.navigator.userAgent)) {
-      htmlClasses.push('is-ios');
-    }
-    if (/Android/.test(window.navigator.userAgent)) {
-      htmlClasses.push('is-android');
-    }
-    document.documentElement.className = htmlClasses.join(' ');
   }
   <% } %>
 </script>

@@ -36,7 +36,9 @@ import org.nuxeo.runtime.test.runner.WithFrameworkProperty;
 
 /**
  * @since 9.1
+ * @deprecated since 2023.22, the mobile banner was removed from the login page
  */
+@Deprecated(since = "2023.22")
 @RunWith(FeaturesRunner.class)
 @Features(CoreFeature.class)
 @Deploy("org.nuxeo.ecm.platform.url")

@@ -163,7 +163,9 @@ public class LoginScreenHelper {
      * {@link LoginScreenConfig}, the default value is {@code true}.
      *
      * @since 2021.12
+     * @deprecated since 2023.22, the mobile banner was removed from the login page
      */
+    @Deprecated(since = "2023.22")
     public static boolean getDisplayMobileBanner(HttpServletRequest request) {
         String displayMobileBannerReqParam = request.getParameter("displayMobileBanner");
         if (StringUtils.isNotBlank(displayMobileBannerReqParam)) {

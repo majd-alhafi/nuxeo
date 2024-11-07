@@ -34,7 +34,9 @@ import org.nuxeo.runtime.api.Framework;
  * Helper for the banner to open a document in the mobile application.
  *
  * @since 9.1
+ * @deprecated since 2023.22, the mobile banner was removed from the login page
  */
+@Deprecated(since = "2023.22")
 public class MobileBannerHelper {
 
     public static final String PROTOCOL_PROPERTY = "nuxeo.mobile.application.protocol";
