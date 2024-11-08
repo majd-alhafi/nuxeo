@@ -39,14 +39,12 @@ import javax.ws.rs.core.Response;
 
 import org.nuxeo.common.function.ThrowableUnaryOperator;
 import org.nuxeo.ecm.core.api.DocumentModel;
-import org.nuxeo.ecm.directory.DirectoryException;
 import org.nuxeo.scim.v2.api.ScimV2Helper;
 import org.nuxeo.scim.v2.api.ScimV2QueryContext;
 
 import com.sun.jersey.api.core.HttpContext;
 import com.unboundid.scim2.common.ScimResource;
 import com.unboundid.scim2.common.exceptions.BadRequestException;
-import com.unboundid.scim2.common.exceptions.ResourceNotFoundException;
 import com.unboundid.scim2.common.exceptions.ScimException;
 import com.unboundid.scim2.common.messages.ListResponse;
 import com.unboundid.scim2.common.messages.PatchRequest;
@@ -144,12 +142,8 @@ public class ScimV2GroupObject extends ScimV2BaseUMObject {
     }
 
     protected Response doDeleteGroup(String uid) throws ScimException {
-        try {
-            um.deleteGroup(uid);
-            return Response.noContent().build();
-        } catch (DirectoryException e) {
-            throw new ResourceNotFoundException("Cannot find group: " + uid);
-        }
+        um.deleteGroup(ScimV2Helper.getGroupModel(uid, false));
+        return Response.noContent().build();
     }
 
     @Override
