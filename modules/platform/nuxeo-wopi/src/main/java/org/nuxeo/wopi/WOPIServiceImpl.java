@@ -220,10 +220,13 @@ public class WOPIServiceImpl extends DefaultComponent implements WOPIService {
     protected void registerApp(WOPIDiscovery.App app) {
         app.getActions().forEach(action -> {
             extensionAppNames.put(action.getExt(), app.getName());
-            extensionActionURLs.computeIfAbsent(action.getExt(), k -> new HashMap<>())
-                               .put(action.getName(),
-                                       String.format("%s%s=%s&", action.getUrl().replaceFirst("<.*$", ""),
-                                               PLACEHOLDER_IS_LICENSED_USER, PLACEHOLDER_IS_LICENSED_USER_VALUE));
+            var url = action.getUrl();
+            int firstArg = url.indexOf("<");
+            if (firstArg > 0) {
+                url = url.substring(0, firstArg);
+            }
+            url = String.format("%s%s=%s&", url, PLACEHOLDER_IS_LICENSED_USER, PLACEHOLDER_IS_LICENSED_USER_VALUE);
+            extensionActionURLs.computeIfAbsent(action.getExt(), k -> new HashMap<>()).put(action.getName(), url);
         });
     }
 
