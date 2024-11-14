@@ -84,4 +84,15 @@ public class IOUtils {
         }
     }
 
+    /**
+     * Checks if a path contains unwanted characters leading to a path traversal.
+     *
+     * @since 2025.0
+     */
+    protected static void checkPathTraversal(String path) {
+        if (path != null && (path.equals("..") || path.contains("../") || path.contains("..\\"))) {
+            throw new IllegalArgumentException("Illegal path: " + path);
+        }
+    }
+
 }

@@ -280,6 +280,7 @@ public class JarBundleFile implements BundleFile {
     }
 
     protected final URL getEntryUrl(String name) throws MalformedURLException {
+        checkPathTraversal(name);
         return new URL(urlBase + name);
     }
 

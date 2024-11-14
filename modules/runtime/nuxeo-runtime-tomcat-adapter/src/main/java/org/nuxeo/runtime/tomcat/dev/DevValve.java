@@ -78,6 +78,7 @@ public class DevValve extends ValveBase {
     }
 
     private final File getSDKFile(String path) {
+        IOUtils.checkPathTraversal(path);
         return new File(new File(getHome(), "sdk"), path);
     }
 

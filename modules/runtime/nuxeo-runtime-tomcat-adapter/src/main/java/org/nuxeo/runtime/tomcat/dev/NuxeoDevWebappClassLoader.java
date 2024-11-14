@@ -37,8 +37,8 @@ import org.nuxeo.runtime.tomcat.NuxeoWebappClassLoader;
  * @author <a href="mailto:bs@nuxeo.com">Bogdan Stefanescu</a>
  */
 
-public class NuxeoDevWebappClassLoader extends NuxeoWebappClassLoader implements DevMutableClassLoader,
-        WebResourcesCacheFlusher {
+public class NuxeoDevWebappClassLoader extends NuxeoWebappClassLoader
+        implements DevMutableClassLoader, WebResourcesCacheFlusher {
 
     /**
      * @since 9.3
@@ -136,6 +136,7 @@ public class NuxeoDevWebappClassLoader extends NuxeoWebappClassLoader implements
 
     @Override
     public URL getResource(String name) {
+        IOUtils.checkPathTraversal(name);
         URL url = super.getResource(name);
         if (url != null) {
             return url;
