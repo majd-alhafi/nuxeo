@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2014 Nuxeo SA (http://nuxeo.com/) and others.
+ * (C) Copyright 2014-2024 Nuxeo (http://nuxeo.com/) and others.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,10 +15,10 @@
  *
  * Contributors:
  *     Thierry Delprat
- *
  */
 package org.nuxeo.ecm.core.uidgen;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -34,9 +34,21 @@ public class DummyUIDSequencerImpl extends AbstractUIDSequencer {
     }
 
     @Override
+    public List<String> getKeys() {
+        return List.copyOf(counters.keySet());
+    }
+
+    @Override
+    public long getCurrent(String key) {
+        if (!counters.containsKey(key)) {
+            return SEQUENCE_DOES_NOT_EXIST;
+        }
+        return counters.get(key).get();
+    }
+
+    @Override
     public long getNextLong(String key) {
-        counters.putIfAbsent(key, new AtomicLong());
-        return counters.get(key).addAndGet(delta);
+        return counters.computeIfAbsent(key, k -> new AtomicLong()).addAndGet(delta);
     }
 
     @Override

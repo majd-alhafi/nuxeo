@@ -22,10 +22,12 @@ import static com.mongodb.client.model.Filters.and;
 import static com.mongodb.client.model.Filters.eq;
 import static com.mongodb.client.model.Filters.gte;
 import static com.mongodb.client.model.Filters.not;
+import static org.nuxeo.runtime.mongodb.MongoDBSerializationHelper.MONGODB_ID;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bson.Document;
@@ -35,7 +37,6 @@ import org.nuxeo.ecm.core.uidgen.AbstractUIDSequencer;
 import org.nuxeo.ecm.core.uidgen.UIDSequencer;
 import org.nuxeo.runtime.api.Framework;
 import org.nuxeo.runtime.mongodb.MongoDBConnectionService;
-import org.nuxeo.runtime.mongodb.MongoDBSerializationHelper;
 import org.nuxeo.runtime.services.config.ConfigurationService;
 
 import com.mongodb.ErrorCategory;
@@ -43,6 +44,7 @@ import com.mongodb.MongoWriteException;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.FindOneAndUpdateOptions;
+import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.ReplaceOptions;
 import com.mongodb.client.model.ReturnDocument;
 import com.mongodb.client.model.Updates;
@@ -77,9 +79,10 @@ public class MongoDBUIDSequencer extends AbstractUIDSequencer {
 
     @Override
     public void initSequence(String key, long id) {
-        Bson filter = and(eq(MongoDBSerializationHelper.MONGODB_ID, key), not(gte(SEQUENCE_VALUE_FIELD, id)));
+        validateKey(key);
+        Bson filter = and(eq(MONGODB_ID, key), not(gte(SEQUENCE_VALUE_FIELD, id)));
         Document sequence = new Document();
-        sequence.put(MongoDBSerializationHelper.MONGODB_ID, key);
+        sequence.put(MONGODB_ID, key);
         sequence.put(SEQUENCE_VALUE_FIELD, id);
         try {
             try {
@@ -87,7 +90,7 @@ public class MongoDBUIDSequencer extends AbstractUIDSequencer {
             } catch (MongoWriteException e) {
                 if (e.getCode() == ERROR_IMMUTABLE_FIELD) {
                     // DocumentDB doesn't support update with an explicit _id
-                    sequence.remove(MongoDBSerializationHelper.MONGODB_ID);
+                    sequence.remove(MONGODB_ID);
                 } else if (ErrorCategory.fromErrorCode(e.getCode()) != ErrorCategory.DUPLICATE_KEY) {
                     throw e;
                 }
@@ -115,6 +118,26 @@ public class MongoDBUIDSequencer extends AbstractUIDSequencer {
     }
 
     @Override
+    public List<String> getKeys() {
+        return getSequencerCollection().find()
+                                       .projection(Projections.include(MONGODB_ID))
+                                       .into(new ArrayList<>())
+                                       .stream()
+                                       .map(document -> document.getString(MONGODB_ID))
+                                       .toList();
+    }
+
+    @Override
+    public long getCurrent(String key) {
+        validateKey(key);
+        var document = getSequencerCollection().find(eq(MONGODB_ID, key)).first();
+        if (document == null) {
+            return SEQUENCE_DOES_NOT_EXIST;
+        }
+        return document.getLong(SEQUENCE_VALUE_FIELD);
+    }
+
+    @Override
     public long getNextLong(String key) {
         return incrementBy(key, 1);
     }
@@ -130,15 +153,16 @@ public class MongoDBUIDSequencer extends AbstractUIDSequencer {
     }
 
     protected long incrementBy(String key, int value) {
+        validateKey(key);
         FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER);
-        Bson filter = eq(MongoDBSerializationHelper.MONGODB_ID, key);
+        Bson filter = eq(MONGODB_ID, key);
         Bson update = Updates.inc(SEQUENCE_VALUE_FIELD, Long.valueOf(value));
         Document sequence = getSequencerCollection().findOneAndUpdate(filter, update, options);
         // If sequence is null, we need to create it
         if (sequence == null) {
             try {
                 sequence = new Document();
-                sequence.put(MongoDBSerializationHelper.MONGODB_ID, key);
+                sequence.put(MONGODB_ID, key);
                 sequence.put(SEQUENCE_VALUE_FIELD, Long.valueOf(value));
                 getSequencerCollection().insertOne(sequence);
             } catch (MongoWriteException e) {
@@ -147,7 +171,7 @@ public class MongoDBUIDSequencer extends AbstractUIDSequencer {
                 return getNextLong(key);
             }
         }
-        return ((Long) MongoDBSerializationHelper.bsonToFieldMap(sequence).get(SEQUENCE_VALUE_FIELD)).longValue();
+        return sequence.getLong(SEQUENCE_VALUE_FIELD).longValue();
     }
 
     @Override
@@ -157,4 +181,9 @@ public class MongoDBUIDSequencer extends AbstractUIDSequencer {
         }
     }
 
+    protected static void validateKey(String key) {
+        if (StringUtils.isBlank(key)) {
+            throw new IllegalArgumentException("The key cannot be null or empty");
+        }
+    }
 }

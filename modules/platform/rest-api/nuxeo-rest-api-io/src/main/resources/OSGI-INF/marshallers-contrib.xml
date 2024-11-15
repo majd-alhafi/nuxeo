@@ -12,6 +12,8 @@
     <register class="org.nuxeo.ecm.restapi.jaxrs.io.management.ProbeStatusJsonWriter" enable="true" />
     <register class="org.nuxeo.ecm.restapi.jaxrs.io.management.ScheduleJsonWriter" enable="true" />
     <register class="org.nuxeo.ecm.restapi.jaxrs.io.management.ScheduleListJsonWriter" enable="true" />
+    <register class="org.nuxeo.ecm.restapi.jaxrs.io.management.SequencerJsonWriter" enable="true" />
+    <register class="org.nuxeo.ecm.restapi.jaxrs.io.management.SequencerListJsonWriter" enable="true" />
     <register class="org.nuxeo.ecm.restapi.jaxrs.io.management.SimplifiedServerInfoJsonWriter" enable="true" />
   </extension>
 

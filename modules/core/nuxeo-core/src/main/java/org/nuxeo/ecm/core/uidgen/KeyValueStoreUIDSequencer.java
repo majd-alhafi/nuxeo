@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2018 Nuxeo (http://nuxeo.com/) and others.
+ * (C) Copyright 2018-2024 Nuxeo (http://nuxeo.com/) and others.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,14 +18,17 @@
  */
 package org.nuxeo.ecm.core.uidgen;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+
+import org.apache.commons.lang3.StringUtils;
 import org.nuxeo.ecm.core.api.NuxeoException;
 import org.nuxeo.runtime.api.Framework;
 import org.nuxeo.runtime.kv.KeyValueService;
 import org.nuxeo.runtime.kv.KeyValueStore;
+import org.nuxeo.runtime.kv.KeyValueStoreProvider;
 import org.nuxeo.runtime.services.config.ConfigurationService;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * UID Sequencer based on a key/value store. The store is the same for all sequencers, but they are using different
@@ -65,12 +68,26 @@ public class KeyValueStoreUIDSequencer extends AbstractUIDSequencer {
     }
 
     protected String getKey(String key) {
+        if (StringUtils.isBlank(key)) {
+            throw new IllegalArgumentException("The key cannot be null or empty");
+        }
         return getName() + SEP + key;
     }
 
     @Override
     public void initSequence(String key, long id) {
         getStore().put(getKey(key), Long.valueOf(id));
+    }
+
+    @Override
+    public List<String> getKeys() {
+        String prefix = getName() + SEP;
+        return ((KeyValueStoreProvider) getStore()).keyStream(prefix).map(k -> k.substring(prefix.length())).toList();
+    }
+
+    @Override
+    public long getCurrent(String key) {
+        return Objects.requireNonNullElse(getStore().getLong(getKey(key)), SEQUENCE_DOES_NOT_EXIST);
     }
 
     @Override

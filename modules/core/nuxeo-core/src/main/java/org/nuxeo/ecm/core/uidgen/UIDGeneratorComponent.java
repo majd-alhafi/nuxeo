@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2006-2017 Nuxeo (http://nuxeo.com/) and others.
+ * (C) Copyright 2006-2024 Nuxeo (http://nuxeo.com/) and others.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ package org.nuxeo.ecm.core.uidgen;
 
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
@@ -262,6 +263,11 @@ public class UIDGeneratorComponent extends DefaultComponent implements UIDGenera
             return adapter.cast(this);
         }
         return null;
+    }
+
+    @Override
+    public List<UIDSequencer> getSequencers() {
+        return List.copyOf(sequencers.values());
     }
 
     @Override

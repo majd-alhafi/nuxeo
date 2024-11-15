@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2014 Nuxeo SA (http://nuxeo.com/) and others.
+ * (C) Copyright 2014-2024 Nuxeo (http://nuxeo.com/) and others.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,12 +18,20 @@
  */
 package org.nuxeo.ecm.core.uidgen;
 
+import java.util.List;
+
 import org.nuxeo.ecm.core.api.DocumentModel;
 import org.nuxeo.ecm.core.api.model.PropertyNotFoundException;
-import org.nuxeo.ecm.core.uidgen.UIDGenerator;
-import org.nuxeo.ecm.core.uidgen.UIDSequencer;
 
 public interface UIDGeneratorService {
+
+    /**
+     * Retrieves all {@link UIDSequencer}.
+     * 
+     * @return all {@link UIDSequencer}.
+     * @since 2025.0
+     */
+    List<UIDSequencer> getSequencers();
 
     /**
      * Retrieves the default {@link UIDSequencer}

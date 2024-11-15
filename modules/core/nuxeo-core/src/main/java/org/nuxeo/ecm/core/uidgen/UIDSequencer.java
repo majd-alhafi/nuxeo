@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2006-2007 Nuxeo (http://nuxeo.com/) and others.
+ * (C) Copyright 2006-2024 Nuxeo (http://nuxeo.com/) and others.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,11 @@ import java.util.List;
  * UID Sequencer interface defines a method to retrieve next ids based on a given key.
  */
 public interface UIDSequencer {
+
+    /**
+     * @since 2025.0
+     */
+    long SEQUENCE_DOES_NOT_EXIST = -1;
 
     /**
      * Gets the sequencer name.
@@ -58,8 +63,21 @@ public interface UIDSequencer {
     void initSequence(String key, long id);
 
     /**
-     * For the given key returns the incremented UID which is also stored in the same sequence entry. This is a
-     * "one time use" function for a document.
+     * @return all keys known to this sequencer
+     * @since 2025.0
+     */
+    List<String> getKeys();
+
+    /**
+     * @return the current sequence value for the given key, or {@link UIDSequencer#SEQUENCE_DOES_NOT_EXIST} if the
+     *         sequence doesn't exist
+     * @since 2025.0
+     */
+    long getCurrent(String key);
+
+    /**
+     * For the given key returns the incremented UID which is also stored in the same sequence entry. This is a "one
+     * time use" function for a document.
      *
      * @since 8.3
      */

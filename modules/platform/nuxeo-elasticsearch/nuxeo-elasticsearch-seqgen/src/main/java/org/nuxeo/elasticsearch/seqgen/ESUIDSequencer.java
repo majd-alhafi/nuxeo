@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2015 Nuxeo SA (http://nuxeo.com/) and others.
+ * (C) Copyright 2015-2024 Nuxeo (http://nuxeo.com/) and others.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,11 +22,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.stream.Stream;
 
-import org.opensearch.action.index.IndexRequest;
-import org.opensearch.action.index.IndexResponse;
-import org.opensearch.common.xcontent.XContentType;
-import org.opensearch.index.VersionType;
+import org.apache.commons.lang3.StringUtils;
 import org.nuxeo.ecm.core.api.ConcurrentUpdateException;
 import org.nuxeo.ecm.core.api.NuxeoException;
 import org.nuxeo.ecm.core.uidgen.AbstractUIDSequencer;
@@ -35,6 +33,15 @@ import org.nuxeo.elasticsearch.ElasticSearchConstants;
 import org.nuxeo.elasticsearch.api.ESClient;
 import org.nuxeo.elasticsearch.api.ElasticSearchAdmin;
 import org.nuxeo.runtime.api.Framework;
+import org.opensearch.action.get.GetRequest;
+import org.opensearch.action.index.IndexRequest;
+import org.opensearch.action.index.IndexResponse;
+import org.opensearch.action.search.SearchRequest;
+import org.opensearch.common.xcontent.XContentType;
+import org.opensearch.index.VersionType;
+import org.opensearch.index.query.QueryBuilders;
+import org.opensearch.search.SearchHit;
+import org.opensearch.search.builder.SearchSourceBuilder;
 
 /**
  * Elasticsearch implementation of {@link UIDSequencer}.
@@ -86,25 +93,43 @@ public class ESUIDSequencer extends AbstractUIDSequencer {
 
     @Override
     public void initSequence(String key, long id) {
+        validateKey(key);
         String source = "{ \"ts\" : " + System.currentTimeMillis() + "}";
-        esClient.index(
-                new IndexRequest(indexName).id(key)
-                                           .versionType(VersionType.EXTERNAL)
-                                           .version(id)
-                                           .source(source, XContentType.JSON));
+        esClient.index(new IndexRequest(indexName).id(key)
+                                                  .versionType(VersionType.EXTERNAL)
+                                                  .version(id)
+                                                  .source(source, XContentType.JSON));
+    }
+
+    @Override
+    public List<String> getKeys() {
+        var response = esClient.search(
+                new SearchRequest(indexName).source(new SearchSourceBuilder().query(QueryBuilders.matchAllQuery())));
+        return Stream.of(response.getHits().getHits()).map(SearchHit::getId).toList();
+    }
+
+    @Override
+    public long getCurrent(String sequenceName) {
+        validateKey(sequenceName);
+        var document = esClient.get(new GetRequest(indexName, sequenceName));
+        if (!document.isExists()) {
+            return SEQUENCE_DOES_NOT_EXIST;
+        }
+        return document.getVersion();
     }
 
     @Override
     public long getNextLong(String sequenceName) {
+        validateKey(sequenceName);
         String source = "{ \"ts\" : " + System.currentTimeMillis() + "}";
         IndexResponse res = esClient.index(
-                new IndexRequest(indexName).id(sequenceName).source(source,
-                        XContentType.JSON));
+                new IndexRequest(indexName).id(sequenceName).source(source, XContentType.JSON));
         return res.getVersion();
     }
 
     @Override
     public List<Long> getNextBlock(String key, int blockSize) {
+        validateKey(key);
         if (blockSize == 1) {
             return Collections.singletonList(getNextLong(key));
         }
@@ -130,5 +155,11 @@ public class ESUIDSequencer extends AbstractUIDSequencer {
             }
         }
         throw new NuxeoException("Unable to get a block of sequence");
+    }
+
+    protected static void validateKey(String key) {
+        if (StringUtils.isBlank(key)) {
+            throw new IllegalArgumentException("The key cannot be null or empty");
+        }
     }
 }
