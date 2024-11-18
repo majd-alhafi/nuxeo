@@ -287,8 +287,6 @@
     <Logger name="org.apache.myfaces.renderkit.html.util.DefaultAddResource" level="error" />
     <Logger name="org.apache.zookeeper" level="warn" />
     <Logger name="org.apache.kafka" level="warn" />
-    <!-- Hide warning from KAFKA-17141 to be removed once fixed (Kafka 3.9.0) -->
-    <Logger name="org.apache.kafka.clients.admin.KafkaAdminClient" level="error" />
 
     <Logger name="org.hibernate" level="warn" />
     <Logger name="net.sf.ehcache.hibernate.EhCacheProvider" level="error" />
