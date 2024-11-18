@@ -4927,9 +4927,10 @@
             </upToDateChecking>
             <java>
               <excludes>
-                <exclude>modules/core/nuxeo-core-query/src/main/java/org/nuxeo/ecm/core/query/sql/parser/parser.java</exclude>
-                <exclude>modules/core/nuxeo-core-query/src/main/java/org/nuxeo/ecm/core/query/sql/parser/Scanner.java</exclude>
-                <exclude>modules/core/nuxeo-core-query/src/main/java/org/nuxeo/ecm/core/query/sql/parser/sym.java</exclude>
+                <exclude>src/main/java/org/nuxeo/ecm/core/query/sql/parser/parser.java</exclude>
+                <exclude>src/main/java/org/nuxeo/ecm/core/query/sql/parser/Scanner.java</exclude>
+                <exclude>src/main/java/org/nuxeo/ecm/core/query/sql/parser/sym.java</exclude>
+                <exclude>src/test/java/org/nuxeo/elasticsearch/test/nxql/TestNxqlConversion.java</exclude>
               </excludes>
               <endWithNewline/>
               <indent>
