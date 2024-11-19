@@ -157,7 +157,7 @@
         <include name="bson-*" />
         <include name="h2-*" />
         <include name="mongodb-driver-*" />
-        <include name="mysql-connector-java-*" />
+        <include name="mysql-connector-j-*" />
         <include name="mariadb-java-client-*" />
         <include name="postgresql-*" />
         <include name="quartz-mongodb-*" />
