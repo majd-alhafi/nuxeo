@@ -85,6 +85,7 @@ RUN --mount=type=secret,id=nuxeo-public,target=/etc/yum.repos.d/nuxeo-public.rep
     # ps is not included in the base oraclelinux image
     procps \
     unzip \
+    vim-enhanced-8.2.2637-20.0.1.el9_1 \
     wget \
     # Install Java before LibreOffice that depends on it
     zulu17-jdk \
@@ -111,6 +112,8 @@ RUN find / -ignore_readdir_race -perm 6000 -type f -exec chmod a-s {} \; || true
 # These directories must be owned by the root group and be readable/writable by that group.
 # See https://docs.openshift.com/container-platform/3.5/creating_images/guidelines.html#use-uid
 RUN chmod g=u /etc/passwd
+
+ENV EDITOR=/usr/bin/vim
 
 # Set an UTF-8 LANG
 ENV LANG=en_US.utf8
