@@ -20,16 +20,7 @@ package org.nuxeo.ecm.platform.web.requestcontroller.filter;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyBoolean;
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 import static org.nuxeo.common.http.HttpHeaders.NUXEO_VIRTUAL_HOST;
 import static org.nuxeo.common.http.HttpHeaders.ORIGIN;
 import static org.nuxeo.common.http.HttpHeaders.REFERER;
@@ -37,19 +28,14 @@ import static org.nuxeo.common.http.HttpHeaders.X_FORWARDED_HOST;
 import static org.nuxeo.common.http.HttpHeaders.X_FORWARDED_PORT;
 import static org.nuxeo.common.http.HttpHeaders.X_FORWARDED_PROTO;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import javax.inject.Inject;
 import javax.servlet.FilterChain;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
 
-import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpHead;
 import org.apache.http.client.methods.HttpOptions;
@@ -58,7 +44,8 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.invocation.InvocationOnMock;
+import org.nuxeo.ecm.platform.web.common.MockHttpServletRequest;
+import org.nuxeo.ecm.platform.web.common.MockHttpServletResponse;
 import org.nuxeo.ecm.platform.web.common.requestcontroller.filter.NuxeoCorsCsrfFilter;
 import org.nuxeo.runtime.mockito.MockitoFeature;
 import org.nuxeo.runtime.test.runner.ConsoleLogLevelThreshold;
@@ -94,10 +81,6 @@ public class TestNuxeoCorsCsrfFilter {
 
     protected DummyFilterChain chain;
 
-    protected HttpServletRequest request;
-
-    protected HttpServletResponse response;
-
     protected static class DummyFilterChain implements FilterChain {
 
         protected boolean called;
@@ -113,8 +96,6 @@ public class TestNuxeoCorsCsrfFilter {
         filter = new NuxeoCorsCsrfFilter();
         filter.init(null);
         chain = new DummyFilterChain();
-        request = mock(HttpServletRequest.class);
-        response = mock(HttpServletResponse.class);
     }
 
     @After
@@ -122,58 +103,21 @@ public class TestNuxeoCorsCsrfFilter {
         filter.destroy();
     }
 
-    protected void maybeSetupToken() {
+    protected MockHttpServletRequest buildRequestHandler(String method) {
+        return buildRequestHandler(method, null);
+    }
+
+    protected MockHttpServletRequest buildRequestHandler(String method, String servletPath) {
+        var handler = MockHttpServletRequest.builder().method(method).scheme(SCHEME).host(HOST).port(PORT);
+        handler.contextPath(CONTEXT);
+        if (servletPath != null) {
+            handler.servletPath(servletPath);
+        }
+        return handler.build();
+    }
+
+    protected void maybeSetupToken(MockHttpServletRequest requestHandler) {
         // overridden in token-checking subclass
-    }
-
-    protected Map<String, Object> mockSessionAttributes() {
-        HttpSession session = mock(HttpSession.class);
-        Map<String, Object> attributes = new HashMap<>();
-        mockSessionAttributes(session, attributes);
-        when(request.getSession()).thenReturn(session);
-        when(request.getSession(anyBoolean())).thenReturn(session);
-        return attributes;
-    }
-
-    protected void mockSessionAttributes(HttpSession session, Map<String, Object> attributes) {
-        // getAttribute
-        doAnswer(i -> {
-            String key = (String) i.getArguments()[0];
-            return attributes.get(key);
-        }).when(session).getAttribute(anyString());
-        // setAttribute
-        doAnswer(i -> {
-            String key = (String) i.getArguments()[0];
-            Object value = i.getArguments()[1];
-            attributes.put(key, value);
-            return null;
-        }).when(session).setAttribute(anyString(), any());
-        // removeAttribute
-        doAnswer(i -> {
-            String key = (String) i.getArguments()[0];
-            attributes.remove(key);
-            return null;
-        }).when(session).removeAttribute(anyString());
-        // invalidate
-        doAnswer(i -> {
-            attributes.clear();
-            return null;
-        }).when(session).invalidate();
-    }
-
-    @SuppressWarnings("boxing")
-    protected void mockRequestURI(HttpServletRequest request, String method, String servletPath) {
-        String requestURI = CONTEXT + servletPath;
-        // good enough for tests that don't use encoded/decoded URLs
-        when(request.getMethod()).thenReturn(method);
-        when(request.getScheme()).thenReturn(SCHEME);
-        when(request.getServerName()).thenReturn(HOST);
-        when(request.getServerPort()).thenReturn(PORT);
-        when(request.getRequestURI()).thenReturn(requestURI);
-        when(request.getContextPath()).thenReturn(CONTEXT);
-        when(request.getServletPath()).thenReturn(servletPath);
-        when(request.getPathInfo()).thenReturn(null);
-        when(request.getQueryString()).thenReturn(null);
     }
 
     /**
@@ -181,8 +125,8 @@ public class TestNuxeoCorsCsrfFilter {
      */
     @Test
     public void testNoOriginNorReferer() throws Exception {
-        mockRequestURI(request, "GET", "");
-        when(request.getHeader(eq(NUXEO_VIRTUAL_HOST))).thenReturn(URL_BASE);
+        var request = buildRequestHandler("GET").whenGetHeaderThenReturn(NUXEO_VIRTUAL_HOST, URL_BASE).mock();
+        var response = MockHttpServletResponse.init().mock();
 
         filter.doFilter(request, response, chain);
         assertTrue(chain.called);
@@ -193,8 +137,8 @@ public class TestNuxeoCorsCsrfFilter {
      */
     @Test
     public void testMatchOrigin() throws Exception {
-        mockRequestURI(request, "GET", "");
-        when(request.getHeader(eq(ORIGIN))).thenReturn(URL_BASE);
+        var request = buildRequestHandler("GET").whenGetHeaderThenReturn(ORIGIN, URL_BASE).mock();
+        var response = MockHttpServletResponse.init().mock();
 
         filter.doFilter(request, response, chain);
         assertTrue(chain.called);
@@ -205,9 +149,10 @@ public class TestNuxeoCorsCsrfFilter {
      */
     @Test
     public void testMatchOriginWithVirtualHost() throws Exception {
-        mockRequestURI(request, "GET", "");
-        when(request.getHeader(eq(ORIGIN))).thenReturn(URL_BASE);
-        when(request.getHeader(eq(NUXEO_VIRTUAL_HOST))).thenReturn(URL_BASE);
+        var request = buildRequestHandler("GET").whenGetHeaderThenReturn(NUXEO_VIRTUAL_HOST, URL_BASE)
+                                                .whenGetHeaderThenReturn(ORIGIN, URL_BASE)
+                                                .mock();
+        var response = MockHttpServletResponse.init().mock();
 
         filter.doFilter(request, response, chain);
         assertTrue(chain.called);
@@ -218,11 +163,12 @@ public class TestNuxeoCorsCsrfFilter {
      */
     @Test
     public void testMatchOriginWithForwardedHeaders() throws Exception {
-        mockRequestURI(request, "GET", "");
-        when(request.getHeader(eq(ORIGIN))).thenReturn("https://nicesite.example.com");
-        when(request.getHeader(eq(X_FORWARDED_PROTO))).thenReturn("https");
-        when(request.getHeader(eq(X_FORWARDED_HOST))).thenReturn("nicesite.example.com");
-        when(request.getHeader(eq(X_FORWARDED_PORT))).thenReturn("443");
+        var request = buildRequestHandler("GET").whenGetHeaderThenReturn(ORIGIN, "https://nicesite.example.com")
+                                                .whenGetHeaderThenReturn(X_FORWARDED_HOST, "nicesite.example.com")
+                                                .whenGetHeaderThenReturn(X_FORWARDED_PORT, "443")
+                                                .whenGetHeaderThenReturn(X_FORWARDED_PROTO, "https")
+                                                .mock();
+        var response = MockHttpServletResponse.init().mock();
 
         filter.doFilter(request, response, chain);
         assertTrue(chain.called);
@@ -233,9 +179,10 @@ public class TestNuxeoCorsCsrfFilter {
      */
     @Test
     public void testMatchReferer() throws Exception {
-        mockRequestURI(request, "GET", "");
-        when(request.getHeader(eq(REFERER))).thenReturn(URL_BASE + "nuxeo/somepage.html");
-        when(request.getHeader(eq(NUXEO_VIRTUAL_HOST))).thenReturn(URL_BASE);
+        var request = buildRequestHandler("GET").whenGetHeaderThenReturn(NUXEO_VIRTUAL_HOST, URL_BASE)
+                                                .whenGetHeaderThenReturn(REFERER, URL_BASE + "nuxeo/somepage.html")
+                                                .mock();
+        var response = MockHttpServletResponse.init().mock();
 
         filter.doFilter(request, response, chain);
         assertTrue(chain.called);
@@ -265,10 +212,10 @@ public class TestNuxeoCorsCsrfFilter {
      * Browser sending the Referer header from an external page with a non-state-changing method.
      */
     public void doTestMismatchButNonStateChangingMethod(String method) throws Exception {
-        mockRequestURI(request, "GET", "");
-        when(request.getMethod()).thenReturn(method);
-        when(request.getHeader(eq(REFERER))).thenReturn("http://google.com/");
-        when(request.getHeader(eq(NUXEO_VIRTUAL_HOST))).thenReturn(URL_BASE);
+        var request = buildRequestHandler(method).whenGetHeaderThenReturn(NUXEO_VIRTUAL_HOST, URL_BASE)
+                                                 .whenGetHeaderThenReturn(REFERER, "http://google.com/")
+                                                 .mock();
+        var response = MockHttpServletResponse.init().mock();
 
         filter.doFilter(request, response, chain);
         assertTrue(chain.called);
@@ -280,12 +227,14 @@ public class TestNuxeoCorsCsrfFilter {
     @Test
     @Deploy("org.nuxeo.ecm.platform.web.common.test:OSGI-INF/test-cors-config.xml")
     public void testOriginFromBrowserExtension() throws Exception {
-        mockRequestURI(request, "POST", "/site/something");
-        when(request.getHeader(eq(ORIGIN))).thenReturn("moz-extension://12345678-1234-1234-1234-1234567890ab");
-        when(request.getHeader(eq(NUXEO_VIRTUAL_HOST))).thenReturn(URL_BASE);
-        maybeSetupToken();
+        var requestHandler = this.buildRequestHandler("POST", "/site/something")
+                                 .whenGetHeaderThenReturn(NUXEO_VIRTUAL_HOST, URL_BASE)
+                                 .whenGetHeaderThenReturn(ORIGIN,
+                                         "moz-extension://12345678-1234-1234-1234-1234567890ab");
+        maybeSetupToken(requestHandler);
+        var response = MockHttpServletResponse.init().mock();
 
-        filter.doFilter(request, response, chain);
+        filter.doFilter(requestHandler.mock(), response, chain);
         assertTrue(chain.called);
     }
 
@@ -295,12 +244,13 @@ public class TestNuxeoCorsCsrfFilter {
     @Test
     @Deploy("org.nuxeo.ecm.platform.web.common.test:OSGI-INF/test-cors-config.xml")
     public void testMismatchPostButAllowedByCORS() throws Exception {
-        mockRequestURI(request, "POST", "/site/something");
-        when(request.getHeader(eq(ORIGIN))).thenReturn("http://friendly.com");
-        when(request.getHeader(eq(NUXEO_VIRTUAL_HOST))).thenReturn(URL_BASE);
-        maybeSetupToken();
+        var requestHandler = this.buildRequestHandler("POST", "/site/something")
+                                 .whenGetHeaderThenReturn(NUXEO_VIRTUAL_HOST, URL_BASE)
+                                 .whenGetHeaderThenReturn(ORIGIN, "http://friendly.com");
+        maybeSetupToken(requestHandler);
+        var response = MockHttpServletResponse.init().mock();
 
-        filter.doFilter(request, response, chain);
+        filter.doFilter(requestHandler.mock(), response, chain);
         assertTrue(chain.called);
     }
 
@@ -311,12 +261,13 @@ public class TestNuxeoCorsCsrfFilter {
     @Test
     @Deploy("org.nuxeo.ecm.platform.web.common.test:OSGI-INF/test-cors-config.xml")
     public void testMismatchPostFromBuggyBrowser() throws Exception {
-        mockRequestURI(request, "POST", "/site/something");
-        when(request.getHeader(eq(REFERER))).thenReturn("http://friendly.com/myapp/login?key=123"); // SSO
-        when(request.getHeader(eq(NUXEO_VIRTUAL_HOST))).thenReturn(URL_BASE);
-        maybeSetupToken();
+        var requestHandler = this.buildRequestHandler("POST", "/site/something")
+                                 .whenGetHeaderThenReturn(NUXEO_VIRTUAL_HOST, URL_BASE)
+                                 .whenGetHeaderThenReturn(REFERER, "http://friendly.com/myapp/login?key=123"); // SSO
+        maybeSetupToken(requestHandler);
+        var response = MockHttpServletResponse.init().mock();
 
-        filter.doFilter(request, response, chain);
+        filter.doFilter(requestHandler.mock(), response, chain);
         assertTrue(chain.called);
     }
 
@@ -357,26 +308,21 @@ public class TestNuxeoCorsCsrfFilter {
 
     @SuppressWarnings("boxing")
     protected void doTestMismatchPost(String origin, boolean allowNullOrigin) throws Exception {
-        mockRequestURI(request, "POST", "/site/something");
-        when(request.getHeader(eq(ORIGIN))).thenReturn(origin);
-        when(request.getHeader(eq(NUXEO_VIRTUAL_HOST))).thenReturn(URL_BASE);
-        maybeSetupToken();
-        MutableObject<InvocationOnMock> error = new MutableObject<>();
-        doAnswer(invocation -> {
-            error.setValue(invocation);
-            return null;
-        }).when(response).sendError(anyInt(), anyString());
+        var requestHandler = this.buildRequestHandler("POST", "/site/something")
+                                 .whenGetHeaderThenReturn(NUXEO_VIRTUAL_HOST, URL_BASE)
+                                 .whenGetHeaderThenReturn(ORIGIN, origin);
+        maybeSetupToken(requestHandler);
+        var responseHandler = MockHttpServletResponse.init();
 
-        filter.doFilter(request, response, chain);
+        filter.doFilter(requestHandler.mock(), responseHandler.mock(), chain);
 
         if ("null".equals(origin) && allowNullOrigin) {
             assertTrue(chain.called);
         } else {
             assertFalse(chain.called);
-            assertNotNull(error.getValue());
-            Object[] arguments = error.getValue().getArguments();
-            assertEquals(HttpServletResponse.SC_FORBIDDEN, arguments[0]); // 403
-            assertEquals("CSRF check failure", arguments[1]);
+            var error = responseHandler.getError();
+            assertEquals(HttpServletResponse.SC_FORBIDDEN, error.code()); // 403
+            assertEquals("CSRF check failure", error.message());
 
             List<String> events = logCaptureResult.getCaughtEventMessages();
             assertFalse("Expected WARN", events.isEmpty());

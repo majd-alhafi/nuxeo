@@ -18,22 +18,16 @@
  */
 package org.nuxeo.ecm.platform.web.common.exceptionhandling;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static javax.servlet.http.HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.when;
 
 import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -44,14 +38,13 @@ import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 
-import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.nuxeo.ecm.core.api.NuxeoException;
+import org.nuxeo.ecm.platform.web.common.MockHttpServletRequest;
+import org.nuxeo.ecm.platform.web.common.MockHttpServletResponse;
 import org.nuxeo.runtime.test.runner.ConsoleLogLevelThreshold;
 import org.nuxeo.runtime.test.runner.Deploy;
 import org.nuxeo.runtime.test.runner.Features;
@@ -94,31 +87,6 @@ public class TestNuxeoExceptionFilter {
         chain = new DummyFilterChain();
     }
 
-    protected Map<String, Object> mockRequestAttributes(HttpServletRequest request) {
-        Map<String, Object> attributes = new HashMap<>();
-        // getAttribute
-        doAnswer(i -> {
-            String key = (String) i.getArguments()[0];
-            return attributes.get(key);
-        }).when(request).getAttribute(anyString());
-        // setAttribute
-        doAnswer(i -> {
-            String key = (String) i.getArguments()[0];
-            Object value = i.getArguments()[1];
-            attributes.put(key, value);
-            return null;
-        }).when(request).setAttribute(anyString(), any());
-        // removeAttribute
-        doAnswer(i -> {
-            String key = (String) i.getArguments()[0];
-            attributes.remove(key);
-            return null;
-        }).when(request).removeAttribute(anyString());
-        // getAttributeNames
-        doAnswer(i -> attributes.keySet()).when(request).getAttributeNames();
-        return attributes;
-    }
-
     @Test
     public void testNuxeoException() throws IOException, ServletException {
         doTestException(new NuxeoException("oops", 456), 456, "oops", "oops", null);
@@ -140,20 +108,16 @@ public class TestNuxeoExceptionFilter {
     @SuppressWarnings("resource")
     protected void doTestException(Exception exc, int expectedStatus, String expectedJsonMessage,
             String expectedMessage, String expectedLog) throws IOException, ServletException {
-        HttpServletRequest request = mock(HttpServletRequest.class);
-        Map<String, Object> requestAttributes = mockRequestAttributes(request);
-        HttpServletResponse response = mock(HttpServletResponse.class);
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        PrintWriter writer = new PrintWriter(new OutputStreamWriter(out, UTF_8), true); // NOSONAR
-        when(response.getWriter()).thenReturn(writer);
+        var requestHandler = MockHttpServletRequest.init();
+        var responseHandler = MockHttpServletResponse.init();
 
         logCaptureResult.clear();
 
         chainException = exc;
-        filter.doFilter(request, response, chain);
+        filter.doFilter(requestHandler.mock(), responseHandler.mock(), chain);
 
         assertEquals("{\"entity-type\":\"exception\",\"status\":" + expectedStatus + ",\"message\":\""
-                + expectedJsonMessage + "\"}", out.toString(UTF_8));
+                + expectedJsonMessage + "\"}", responseHandler.getResponseAsString());
 
         List<String> expectedEvents = expectedLog == null ? Collections.emptyList()
                 : Collections.singletonList(expectedLog);
@@ -167,13 +131,15 @@ public class TestNuxeoExceptionFilter {
         expectedRequestAttributes.put("exception_message", expectedMessage);
         expectedRequestAttributes.put("securityError", false);
         expectedRequestAttributes.put("isDevModeSet", false);
-        assertEquals(expectedRequestAttributes, requestAttributes);
+        assertEquals(expectedRequestAttributes, requestHandler.getAttributes());
 
+        var request = requestHandler.mock();
         verify(request, atLeastOnce()).getAttribute(anyString());
         verify(request, atLeastOnce()).setAttribute(anyString(), any());
         verify(request, atLeastOnce()).getHeader(anyString());
         verifyNoMoreInteractions(request);
 
+        var response = responseHandler.mock();
         verify(response).isCommitted();
         verify(response).reset();
         verify(response).setStatus(expectedStatus);

@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2013 Nuxeo SA (http://nuxeo.com/) and others.
+ * (C) Copyright 2013-2024 Nuxeo (http://nuxeo.com/) and others.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,10 +18,7 @@
  */
 package org.nuxeo.ecm.platform.web.common;
 
-import javax.servlet.http.HttpServletRequest;
-
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.*;
 
 import org.junit.Test;
 
@@ -30,33 +27,50 @@ import org.junit.Test;
  */
 public class TestContentDisposition {
 
-    private static final String MSIE_7 = "Mozilla/4.0 (compatible; MSIE 7.0)";
+    protected static final String MSIE_7 = "Mozilla/4.0 (compatible; MSIE 7.0)";
+
+    protected static final String USER_AGENT = "User-Agent";
 
     @Test
-    public void inlineContentDisposition() throws Exception {
-        for (boolean useAttribute : new Boolean[] { true, false }) {
-
-            HttpServletRequest req = getRequest(useAttribute, "true", MSIE_7);
-            assertEquals("inline; filename=myfile.txt", ServletHelper.getRFC2231ContentDisposition(req, "myfile.txt"));
-
-            req = getRequest(useAttribute, "false", MSIE_7);
-            assertEquals("attachment; filename=myfile.txt",
-                    ServletHelper.getRFC2231ContentDisposition(req, "myfile.txt"));
-
-            req = getRequest(useAttribute, null, MSIE_7);
-            assertEquals("attachment; filename=myfile.txt",
-                    ServletHelper.getRFC2231ContentDisposition(req, "myfile.txt"));
-        }
+    public void testContentDisposition() {
+        var requestHandler = MockHttpServletRequest.init().whenGetHeaderThenReturn(USER_AGENT, MSIE_7);
+        assertEquals("attachment; filename=myfile.txt",
+                ServletHelper.getRFC2231ContentDisposition(requestHandler.mock(), "myfile.txt"));
     }
 
-    private HttpServletRequest getRequest(boolean useAttribute, String inline, String userAgent) {
-        HttpServletRequest req = mock(HttpServletRequest.class);
-        if (useAttribute) {
-            when(req.getAttribute("inline")).thenReturn(inline);
-        } else {
-            when(req.getParameter("inline")).thenReturn(inline);
-        }
-        when(req.getHeader("User-Agent")).thenReturn(userAgent);
-        return req;
+    @Test
+    public void testContentDispositionWithInlineEnabledAsAttribute() {
+        var requestHandler = MockHttpServletRequest.init()
+                                                   .whenGetHeaderThenReturn(USER_AGENT, MSIE_7)
+                                                   .whenGetAttributeThenReturn("inline", "true");
+        assertEquals("inline; filename=myfile.txt",
+                ServletHelper.getRFC2231ContentDisposition(requestHandler.mock(), "myfile.txt"));
+    }
+
+    @Test
+    public void testContentDispositionWithInlineDisabledAsAttribute() {
+        var requestHandler = MockHttpServletRequest.init()
+                                                   .whenGetHeaderThenReturn(USER_AGENT, MSIE_7)
+                                                   .whenGetAttributeThenReturn("inline", "false");
+        assertEquals("attachment; filename=myfile.txt",
+                ServletHelper.getRFC2231ContentDisposition(requestHandler.mock(), "myfile.txt"));
+    }
+
+    @Test
+    public void testContentDispositionWithInlineEnabledAsParameter() {
+        var requestHandler = MockHttpServletRequest.init()
+                                                   .whenGetHeaderThenReturn(USER_AGENT, MSIE_7)
+                                                   .whenGetAttributeThenReturn("inline", "true");
+        assertEquals("inline; filename=myfile.txt",
+                ServletHelper.getRFC2231ContentDisposition(requestHandler.mock(), "myfile.txt"));
+    }
+
+    @Test
+    public void testContentDispositionWithInlineDisabledAsParameter() {
+        var requestHandler = MockHttpServletRequest.init()
+                                                   .whenGetHeaderThenReturn(USER_AGENT, MSIE_7)
+                                                   .whenGetAttributeThenReturn("inline", "false");
+        assertEquals("attachment; filename=myfile.txt",
+                ServletHelper.getRFC2231ContentDisposition(requestHandler.mock(), "myfile.txt"));
     }
 }

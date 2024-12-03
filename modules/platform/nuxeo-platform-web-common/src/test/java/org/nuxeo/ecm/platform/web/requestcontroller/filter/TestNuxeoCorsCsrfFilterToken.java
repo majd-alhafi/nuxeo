@@ -25,18 +25,12 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
-import java.util.Map;
-
-import org.apache.commons.lang3.mutable.MutableObject;
 import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
+import org.nuxeo.ecm.platform.web.common.MockHttpServletRequest;
+import org.nuxeo.ecm.platform.web.common.MockHttpServletResponse;
 import org.nuxeo.runtime.test.runner.Deploy;
 
 /**
@@ -58,31 +52,25 @@ public class TestNuxeoCorsCsrfFilterToken extends TestNuxeoCorsCsrfFilter {
     protected static final String CSRF_TOKEN_PARAM = "csrf-token";
 
     @Override
-    protected void maybeSetupToken() {
-        Map<String, Object> sessionAttributes = mockSessionAttributes();
+    protected void maybeSetupToken(MockHttpServletRequest requestHandler) {
         String token = "realtoken";
-
-        // put token in session
-        sessionAttributes.put(CSRF_TOKEN_ATTRIBUTE, token);
-        // pass token in request
-        when(request.getHeader(eq(CSRF_TOKEN_HEADER))).thenReturn(token);
+        requestHandler.whenGetSessionAttributeThenReturn(CSRF_TOKEN_ATTRIBUTE, token)
+                      .whenGetHeaderThenReturn(CSRF_TOKEN_HEADER, token);
     }
-
 
     /**
      * Browser sending a header "CSRF-Token: fetch".
      */
     @Test
     public void testCSRFTokenAcquire() throws Exception {
-        mockRequestURI(request, "GET", "");
-        when(request.getHeader(eq(CSRF_TOKEN_HEADER))).thenReturn(CSRF_TOKEN_FETCH);
-        Map<String, Object> sessionAttributes = mockSessionAttributes();
+        var requestHandler = buildRequestHandler("GET").whenGetHeaderThenReturn(CSRF_TOKEN_HEADER, CSRF_TOKEN_FETCH);
+        var response = MockHttpServletResponse.init().mock();
 
-        filter.doFilter(request, response, chain);
+        filter.doFilter(requestHandler.mock(), response, chain);
         // chain not called
         assertFalse(chain.called);
         // but a token was created in session
-        String token = (String) sessionAttributes.get(CSRF_TOKEN_ATTRIBUTE);
+        String token = requestHandler.getSessionAttributeValue(CSRF_TOKEN_ATTRIBUTE);
         assertNotNull(token);
         // and we have a response
         verify(response).setStatus(eq(SC_OK));
@@ -123,30 +111,24 @@ public class TestNuxeoCorsCsrfFilterToken extends TestNuxeoCorsCsrfFilter {
 
     @SuppressWarnings("boxing")
     protected void doTestCSRFTokenInvalid(String token, String requestToken) throws Exception {
-        mockRequestURI(request, "POST", "/site/something");
-        when(request.getHeader(eq(CSRF_TOKEN_HEADER))).thenReturn(requestToken);
-        Map<String, Object> sessionAttributes = mockSessionAttributes();
-        MutableObject<InvocationOnMock> error = new MutableObject<>();
-        doAnswer(invocation -> {
-            error.setValue(invocation);
-            return null;
-        }).when(response).sendError(anyInt(), anyString());
-        sessionAttributes.put(CSRF_TOKEN_ATTRIBUTE, token);
+        var requestHandler = this.buildRequestHandler("POST", "/site/something")
+                                 .whenGetHeaderThenReturn(CSRF_TOKEN_HEADER, requestToken)
+                                 .whenGetSessionAttributeThenReturn(CSRF_TOKEN_ATTRIBUTE, token);
+        var responseHandler = MockHttpServletResponse.init();
 
-        filter.doFilter(request, response, chain);
+        filter.doFilter(requestHandler.mock(), responseHandler.mock(), chain);
         // chain not called
         assertFalse(chain.called);
         // no new token was created in session
         if (token == null) {
-            assertNull(sessionAttributes.get(CSRF_TOKEN_ATTRIBUTE));
+            assertNull(requestHandler.getSessionAttributeValue(CSRF_TOKEN_ATTRIBUTE));
         }
         // and we have an error status
-        assertNotNull(error.getValue());
-        Object[] arguments = error.getValue().getArguments();
-        assertEquals(SC_FORBIDDEN, arguments[0]); // 403
-        assertEquals("CSRF check failure", arguments[1]);
+        var error = responseHandler.getError();
+        assertEquals(SC_FORBIDDEN, error.code()); // 403
+        assertEquals("CSRF check failure", error.message());
         // and a header saying this is due to invalid CSRF token
-        verify(response).setHeader(CSRF_TOKEN_HEADER, CSRF_TOKEN_INVALID);
+        verify(responseHandler.mock()).setHeader(CSRF_TOKEN_HEADER, CSRF_TOKEN_INVALID);
     }
 
     /**
@@ -154,14 +136,14 @@ public class TestNuxeoCorsCsrfFilterToken extends TestNuxeoCorsCsrfFilter {
      */
     @Test
     public void testCSRFTokenMissingOnAllowedEndpoint() throws Exception {
-        mockRequestURI(request, "POST", "/mysaml/mylogin");
-        Map<String, Object> sessionAttributes = mockSessionAttributes();
+        var requestHandler = buildRequestHandler("POST", "/mysaml/mylogin");
+        var response = MockHttpServletResponse.init().mock();
 
-        filter.doFilter(request, response, chain);
+        filter.doFilter(requestHandler.mock(), response, chain);
         // chain called
         assertTrue(chain.called);
         // no new token was created in session
-        assertNull(sessionAttributes.get(CSRF_TOKEN_ATTRIBUTE));
+        assertNull(requestHandler.getSessionAttributeValue(CSRF_TOKEN_ATTRIBUTE));
     }
 
 }

@@ -18,29 +18,21 @@
  */
 package org.nuxeo.ecm.platform.web.idempotency;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static javax.servlet.http.HttpServletResponse.SC_CONFLICT;
 import static javax.servlet.http.HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
 import static javax.servlet.http.HttpServletResponse.SC_NOT_FOUND;
 import static javax.servlet.http.HttpServletResponse.SC_OK;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.assertThrows;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 import static org.nuxeo.ecm.platform.web.common.idempotency.NuxeoIdempotentResponse.SKIPPED_HEADERS;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.io.PrintWriter;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -49,8 +41,6 @@ import java.util.Map;
 import javax.inject.Inject;
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
-import javax.servlet.ServletOutputStream;
-import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.http.client.methods.HttpGet;
@@ -59,8 +49,8 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
+import org.nuxeo.ecm.platform.web.common.MockHttpServletRequest;
+import org.nuxeo.ecm.platform.web.common.MockHttpServletResponse;
 import org.nuxeo.ecm.platform.web.common.idempotency.NuxeoIdempotentFilter;
 import org.nuxeo.runtime.kv.KeyValueService;
 import org.nuxeo.runtime.kv.KeyValueStoreProvider;
@@ -119,95 +109,15 @@ public class TestNuxeoIdempotentFilter {
 
     protected FilterChain chain;
 
-    protected HttpServletRequest request;
-
-    protected MockResponse mockResponse;
-
     @Inject
     protected KeyValueService kvs;
 
     protected KeyValueStoreProvider store;
 
-    protected static class MockResponse {
-
-        protected HttpServletResponse response;
-
-        protected int status;
-
-        protected Map<String, Collection<String>> headers = new LinkedHashMap<>();
-
-        protected OutputStream output;
-
-        public MockResponse() throws IOException {
-            super();
-            response = mock(HttpServletResponse.class);
-            // output mock
-            output = new ByteArrayOutputStream();
-            ServletOutputStream servletOutput = mock(ServletOutputStream.class);
-            doAnswer(invocation -> {
-                output.write((Integer) invocation.getArguments()[0]);
-                return null;
-            }).when(servletOutput).write(anyInt());
-            doAnswer(invocation -> {
-                output.write((byte[]) invocation.getArguments()[0]);
-                return null;
-            }).when(servletOutput).write(any(byte[].class));
-            doAnswer(invocation -> {
-                output.write((byte[]) invocation.getArguments()[0], (Integer) invocation.getArguments()[1],
-                        (Integer) invocation.getArguments()[2]);
-                return null;
-            }).when(servletOutput).write(any(byte[].class), anyInt(), anyInt());
-            when(response.getOutputStream()).thenReturn(servletOutput);
-            PrintWriter writer = mock(PrintWriter.class);
-            doAnswer(invocation -> {
-                output.write(((String) invocation.getArguments()[0]).getBytes());
-                return null;
-            }).when(writer).write(anyString());
-            doAnswer(invocation -> writer).when(response).getWriter();
-            when(response.getCharacterEncoding()).thenReturn(UTF_8.name());
-            // status mock
-            doAnswer(invocation -> status).when(response).getStatus();
-            doAnswer(invocation -> {
-                status = (Integer) invocation.getArguments()[0];
-                return null;
-            }).when(response).setStatus(anyInt());
-            // headers mock
-            when(response.getHeaderNames()).thenReturn(headers.keySet());
-            doAnswer(invocation -> headers.get(invocation.getArguments()[0]).stream().findFirst().get()).when(
-                    response).getHeader(anyString());
-            doAnswer(invocation -> headers.get(invocation.getArguments()[0])).when(response).getHeaders(anyString());
-            doAnswer(invocation -> {
-                headers.put((String) invocation.getArguments()[0],
-                        new ArrayList<>(List.of((String) invocation.getArguments()[1])));
-                return null;
-            }).when(response).setHeader(anyString(), anyString());
-            doAnswer(invocation -> {
-                headers.computeIfAbsent((String) invocation.getArguments()[0], k -> new ArrayList<>())
-                       .add((String) invocation.getArguments()[1]);
-                return null;
-            }).when(response).addHeader(anyString(), anyString());
-        }
-
-        public int getStatus() {
-            return status;
-        }
-
-        public HttpServletResponse getResponse() {
-            return response;
-        }
-
-        public OutputStream getOutput() {
-            return output;
-        }
-
-    }
-
     @Before
     public void setUp() throws IOException {
         filter = new NuxeoIdempotentFilter();
         chain = mock(FilterChain.class);
-        request = mock(HttpServletRequest.class);
-        mockResponse = new MockResponse();
         // handle store
         store = (KeyValueStoreProvider) kvs.getKeyValueStore(NuxeoIdempotentFilter.DEFAULT_STORE);
         store.clear();
@@ -223,11 +133,11 @@ public class TestNuxeoIdempotentFilter {
         }
     }
 
-    protected void checkResponse(MockResponse mockResponse, Integer status, String content,
+    protected void checkResponse(MockHttpServletResponse mockResponse, Integer status, String content,
             Map<String, Collection<String>> headers) {
         assertEquals(status, (Integer) mockResponse.getStatus());
-        assertEquals(content, mockResponse.getOutput().toString());
-        HttpServletResponse response = mockResponse.getResponse();
+        assertEquals(content, mockResponse.getResponseAsString());
+        HttpServletResponse response = mockResponse.mock();
         assertEquals(headers.keySet(), response.getHeaderNames());
         headers.forEach((k, v) -> assertEquals(v, response.getHeaders(k)));
     }
@@ -256,28 +166,32 @@ public class TestNuxeoIdempotentFilter {
 
     @Test
     public void testGetRequestWithoutKey() throws IOException, ServletException {
-        when(request.getMethod()).thenReturn(HttpGet.METHOD_NAME);
+        var request = MockHttpServletRequest.init(HttpGet.METHOD_NAME).mock();
+        var response = MockHttpServletResponse.init().mock();
         verify(chain, times(0)).doFilter(any(), any());
-        filter.doFilter(request, mockResponse.getResponse(), chain);
+        filter.doFilter(request, response, chain);
         verify(chain, times(1)).doFilter(any(), any());
         checkStore(null, null);
     }
 
     @Test
     public void testPostRequestWithoutKey() throws IOException, ServletException {
-        when(request.getMethod()).thenReturn(HttpPost.METHOD_NAME);
+        var request = MockHttpServletRequest.init(HttpPost.METHOD_NAME).mock();
+        var response = MockHttpServletResponse.init().mock();
         verify(chain, times(0)).doFilter(any(), any());
-        filter.doFilter(request, mockResponse.getResponse(), chain);
+        filter.doFilter(request, response, chain);
         verify(chain, times(1)).doFilter(any(), any());
         checkStore(null, null);
     }
 
     @Test
     public void testGetRequest() throws IOException, ServletException {
-        when(request.getMethod()).thenReturn(HttpGet.METHOD_NAME);
-        when(request.getHeader(NuxeoIdempotentFilter.HEADER_KEY)).thenReturn(KEY);
+        var request = MockHttpServletRequest.init(HttpGet.METHOD_NAME)
+                                            .whenGetHeaderThenReturn(NuxeoIdempotentFilter.HEADER_KEY, KEY)
+                                            .mock();
+        var response = MockHttpServletResponse.init().mock();
         verify(chain, times(0)).doFilter(any(), any());
-        filter.doFilter(request, mockResponse.getResponse(), chain);
+        filter.doFilter(request, response, chain);
         verify(chain, times(1)).doFilter(any(), any());
         checkStore(null, null);
     }
@@ -291,115 +205,103 @@ public class TestNuxeoIdempotentFilter {
 
     @Test
     public void testPostRequest() throws IOException, ServletException {
-        when(request.getMethod()).thenReturn(HttpPost.METHOD_NAME);
-        when(request.getHeader(NuxeoIdempotentFilter.HEADER_KEY)).thenReturn(KEY);
+        var request = MockHttpServletRequest.init(HttpPost.METHOD_NAME)
+                                            .whenGetHeaderThenReturn(NuxeoIdempotentFilter.HEADER_KEY, KEY)
+                                            .mock();
+        var responseHandler = MockHttpServletResponse.init();
         // mock final call
-        doAnswer(new Answer<String>() {
-            @Override
-            public String answer(InvocationOnMock invocation) throws IOException {
-                setResult((HttpServletResponse) invocation.getArguments()[1], SC_OK, CONTENT);
-                return null;
-            }
+        doAnswer(invocation -> {
+            setResult((HttpServletResponse) invocation.getArguments()[1], SC_OK, CONTENT);
+            return null;
         }).when(chain).doFilter(any(), any());
 
         verify(chain, times(0)).doFilter(any(), any());
-        filter.doFilter(request, mockResponse.getResponse(), chain);
+        filter.doFilter(request, responseHandler.mock(), chain);
         verify(chain, times(1)).doFilter(any(), any());
-        checkResponse(mockResponse, SC_OK, CONTENT, FINAL_RESPONSE_HEADERS);
+        checkResponse(responseHandler, SC_OK, CONTENT, FINAL_RESPONSE_HEADERS);
         checkStore(String.valueOf(SC_OK), CONTENT);
         // call filter again: stored value will be sent back again
-        MockResponse mockResponse2 = new MockResponse();
-        filter.doFilter(request, mockResponse2.getResponse(), chain);
+        responseHandler = MockHttpServletResponse.init();
+        filter.doFilter(request, responseHandler.mock(), chain);
         // chain filter not called again
         verify(chain, times(1)).doFilter(any(), any());
-        checkResponse(mockResponse2, SC_OK, CONTENT, FINAL_COPY_RESPONSE_HEADERS);
+        checkResponse(responseHandler, SC_OK, CONTENT, FINAL_COPY_RESPONSE_HEADERS);
         checkStore(String.valueOf(SC_OK), CONTENT);
     }
 
     @Test
     public void testPostRequestInProgress() throws IOException, ServletException {
-        when(request.getMethod()).thenReturn(HttpPost.METHOD_NAME);
-        when(request.getHeader(NuxeoIdempotentFilter.HEADER_KEY)).thenReturn(KEY);
+        var request = MockHttpServletRequest.init(HttpPost.METHOD_NAME)
+                                            .whenGetHeaderThenReturn(NuxeoIdempotentFilter.HEADER_KEY, KEY)
+                                            .mock();
+        var responseHandler = MockHttpServletResponse.init();
 
-        doAnswer(new Answer<String>() {
-            @Override
-            public String answer(InvocationOnMock invocation) throws IOException, ServletException {
-                // during first execution, execute another request
-                MockResponse mockResponse2 = new MockResponse();
-                verify(chain, times(1)).doFilter(any(), any());
-                filter.doFilter(request, mockResponse2.getResponse(), mock(FilterChain.class));
-                verify(chain, times(1)).doFilter(any(), any());
-                checkResponse(mockResponse2, SC_CONFLICT, "", KEY_RESPONSE_HEADERS);
-                checkStore(NuxeoIdempotentFilter.INPROGRESS_MARKER, null);
+        doAnswer(invocation -> {
+            // during first execution, execute another request
+            var responseHandler2 = MockHttpServletResponse.init();
+            verify(chain, times(1)).doFilter(any(), any());
+            filter.doFilter(request, responseHandler2.mock(), mock(FilterChain.class));
+            verify(chain, times(1)).doFilter(any(), any());
+            checkResponse(responseHandler2, SC_CONFLICT, "", KEY_RESPONSE_HEADERS);
+            checkStore(NuxeoIdempotentFilter.INPROGRESS_MARKER, null);
 
-                // finish first call
-                setResult((HttpServletResponse) invocation.getArguments()[1], SC_OK, CONTENT);
-                return null;
-            }
+            // finish first call
+            setResult((HttpServletResponse) invocation.getArguments()[1], SC_OK, CONTENT);
+            return null;
         }).when(chain).doFilter(any(), any());
 
         verify(chain, times(0)).doFilter(any(), any());
-        filter.doFilter(request, mockResponse.getResponse(), chain);
+        filter.doFilter(request, responseHandler.mock(), chain);
         verify(chain, times(1)).doFilter(any(), any());
-        checkResponse(mockResponse, SC_OK, CONTENT, FINAL_RESPONSE_HEADERS);
+        checkResponse(responseHandler, SC_OK, CONTENT, FINAL_RESPONSE_HEADERS);
         checkStore(String.valueOf(SC_OK), CONTENT);
     }
 
     @Test
     public void testPostRequestException() throws IOException, ServletException {
-        when(request.getMethod()).thenReturn(HttpPost.METHOD_NAME);
-        when(request.getHeader(NuxeoIdempotentFilter.HEADER_KEY)).thenReturn(KEY);
+        var request = MockHttpServletRequest.init(HttpPost.METHOD_NAME)
+                                            .whenGetHeaderThenReturn(NuxeoIdempotentFilter.HEADER_KEY, KEY)
+                                            .mock();
+        var responseHandler = MockHttpServletResponse.init();
 
-        doAnswer(new Answer<String>() {
-            @Override
-            public String answer(InvocationOnMock invocation) throws IOException, ServletException {
-                throw new ServletException("test error");
-            }
+        doAnswer(invocation -> {
+            throw new ServletException("test error");
         }).when(chain).doFilter(any(), any());
 
         verify(chain, times(0)).doFilter(any(), any());
-        try {
-            filter.doFilter(request, mockResponse.getResponse(), chain);
-            fail("should have thrown Servlet Exception");
-        } catch (ServletException e) {
-            // ok
-        }
+        assertThrows(ServletException.class, () -> filter.doFilter(request, responseHandler.mock(), chain));
         verify(chain, times(1)).doFilter(any(), any());
-        checkResponse(mockResponse, SC_INTERNAL_SERVER_ERROR, "", KEY_RESPONSE_HEADERS);
+        checkResponse(responseHandler, SC_INTERNAL_SERVER_ERROR, "", KEY_RESPONSE_HEADERS);
         checkStore(null, null);
 
         // try again
-        doAnswer(new Answer<String>() {
-            @Override
-            public String answer(InvocationOnMock invocation) throws IOException {
-                setResult((HttpServletResponse) invocation.getArguments()[1], SC_OK, CONTENT);
-                return null;
-            }
+        doAnswer(invocation -> {
+            setResult((HttpServletResponse) invocation.getArguments()[1], SC_OK, CONTENT);
+            return null;
         }).when(chain).doFilter(any(), any());
         verify(chain, times(1)).doFilter(any(), any());
-        filter.doFilter(request, mockResponse.getResponse(), chain);
+        filter.doFilter(request, responseHandler.mock(), chain);
         verify(chain, times(2)).doFilter(any(), any());
-        checkResponse(mockResponse, SC_OK, CONTENT, FINAL_RESPONSE_HEADERS);
+        checkResponse(responseHandler, SC_OK, CONTENT, FINAL_RESPONSE_HEADERS);
         checkStore(String.valueOf(SC_OK), CONTENT);
     }
 
     @Test
     public void testPostRequestError() throws IOException, ServletException {
-        when(request.getMethod()).thenReturn(HttpPost.METHOD_NAME);
-        when(request.getHeader(NuxeoIdempotentFilter.HEADER_KEY)).thenReturn(KEY);
+        var request = MockHttpServletRequest.init(HttpPost.METHOD_NAME)
+                                            .whenGetHeaderThenReturn(NuxeoIdempotentFilter.HEADER_KEY, KEY)
+                                            .mock();
+        var responseHandler = MockHttpServletResponse.init();
 
-        doAnswer(new Answer<String>() {
-            @Override
-            public String answer(InvocationOnMock invocation) throws IOException, ServletException {
-                setResult((HttpServletResponse) invocation.getArguments()[1], SC_NOT_FOUND, "not found");
-                return null;
-            }
+        doAnswer(invocation -> {
+            setResult((HttpServletResponse) invocation.getArguments()[1], SC_NOT_FOUND, "not found");
+            return null;
         }).when(chain).doFilter(any(), any());
 
         verify(chain, times(0)).doFilter(any(), any());
-        filter.doFilter(request, mockResponse.getResponse(), chain);
+        filter.doFilter(request, responseHandler.mock(), chain);
         verify(chain, times(1)).doFilter(any(), any());
-        checkResponse(mockResponse, SC_NOT_FOUND, "not found", FINAL_RESPONSE_HEADERS);
+        checkResponse(responseHandler, SC_NOT_FOUND, "not found", FINAL_RESPONSE_HEADERS);
         checkStore(null, null);
     }
 

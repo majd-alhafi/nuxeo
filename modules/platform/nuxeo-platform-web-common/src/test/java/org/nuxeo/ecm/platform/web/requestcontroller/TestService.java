@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2006-2017 Nuxeo (http://nuxeo.com/) and others.
+ * (C) Copyright 2006-2024 Nuxeo (http://nuxeo.com/) and others.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,8 +23,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -32,10 +30,10 @@ import java.util.Map;
 import java.util.Set;
 
 import javax.inject.Inject;
-import javax.servlet.http.HttpServletRequest;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.nuxeo.ecm.platform.web.common.MockHttpServletRequest;
 import org.nuxeo.ecm.platform.web.common.requestcontroller.service.RequestControllerManager;
 import org.nuxeo.ecm.platform.web.common.requestcontroller.service.RequestControllerService;
 import org.nuxeo.ecm.platform.web.common.requestcontroller.service.RequestFilterConfig;
@@ -64,7 +62,7 @@ public class TestService {
     }
 
     @Test
-    public void testServiceContrib() throws Exception {
+    public void testServiceContrib() {
         RequestControllerService requestControllerService = (RequestControllerService) requestControllerManager;
         String uri;
         RequestFilterConfig config;
@@ -123,27 +121,27 @@ public class TestService {
     }
 
     @Test
-    public void testCorsContrib() throws Exception {
-        HttpServletRequest request = mock(HttpServletRequest.class);
+    public void testCorsContrib() {
+        MockHttpServletRequest requestHandler;
         String uri;
         CORSFilter filter;
         CORSConfiguration config;
 
         uri = "/dummy/uri";
-        when(request.getRequestURI()).thenReturn(uri);
-        filter = requestControllerManager.getCorsFilterForRequest(request);
+        requestHandler = MockHttpServletRequest.init("GET", "http://localhost:8080" + uri);
+        filter = requestControllerManager.getCorsFilterForRequest(requestHandler.mock());
         assertNull(filter);
 
         uri = "/nuxeo/site/minimal/something/long/dummy.html";
-        when(request.getRequestURI()).thenReturn(uri);
-        filter = requestControllerManager.getCorsFilterForRequest(request);
+        requestHandler = MockHttpServletRequest.init("GET", "http://localhost:8080" + uri);
+        filter = requestControllerManager.getCorsFilterForRequest(requestHandler.mock());
         config = filter.getConfiguration();
         assertEquals(-1, config.maxAge);
         assertEquals(Collections.emptySet(), config.allowedOrigins);
 
         uri = "/nuxeo/site/dummy/";
-        when(request.getRequestURI()).thenReturn(uri);
-        filter = requestControllerManager.getCorsFilterForRequest(request);
+        requestHandler = MockHttpServletRequest.init("GET", "http://localhost:8080" + uri);
+        filter = requestControllerManager.getCorsFilterForRequest(requestHandler.mock());
         config = filter.getConfiguration();
         assertEquals(3600, config.maxAge);
         Set<Origin> expectedOrigins = new HashSet<>();
@@ -154,7 +152,7 @@ public class TestService {
     }
 
     @Test
-    public void testHeadersContrib() throws Exception {
+    public void testHeadersContrib() {
         Map<String, String> rh = requestControllerManager.getResponseHeaders();
         assertEquals(8, rh.size());
         assertTrue(rh.containsKey("WWW-Authenticate"));

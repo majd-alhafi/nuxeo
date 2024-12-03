@@ -18,31 +18,28 @@
  */
 package org.nuxeo.ecm.platform.web.common;
 
+import static org.apache.commons.lang3.ObjectUtils.anyNotNull;
+import static org.apache.commons.lang3.ObjectUtils.defaultIfNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.net.MalformedURLException;
 import java.net.URI;
-import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
 /**
@@ -54,7 +51,9 @@ public class MockHttpServletRequest {
 
     protected final Map<String, Object> attributes;
 
-    protected Map<String, Object> sessionAttributes;
+    protected final HttpSession session;
+
+    protected final Map<String, Object> sessionAttributes;
 
     protected List<Cookie> cookies;
 
@@ -77,26 +76,56 @@ public class MockHttpServletRequest {
             attributes.remove(key);
             return null;
         }).when(mock).removeAttribute(anyString());
+        // initialize session
+        session = Mockito.mock(HttpSession.class, RETURNS_DEEP_STUBS);
+        when(mock.getSession()).thenReturn(session);
+        when(mock.getSession(anyBoolean())).thenReturn(session);
+        // initialize session attributes
+        sessionAttributes = new HashMap<>();
+        doAnswer(i -> {
+            String key = (String) i.getArguments()[0];
+            return sessionAttributes.get(key);
+        }).when(session).getAttribute(anyString());
+        doAnswer(i -> {
+            String key = (String) i.getArguments()[0];
+            Object value = i.getArguments()[1];
+            sessionAttributes.put(key, value);
+            return null;
+        }).when(session).setAttribute(anyString(), any());
+        doAnswer(i -> {
+            String key = (String) i.getArguments()[0];
+            sessionAttributes.remove(key);
+            return null;
+        }).when(session).removeAttribute(anyString());
+        doAnswer(i -> {
+            sessionAttributes.clear();
+            return null;
+        }).when(session).invalidate();
     }
 
     public static MockHttpServletRequest init() {
-        var request = Mockito.mock(HttpServletRequest.class, RETURNS_DEEP_STUBS);
-        return new MockHttpServletRequest(request);
+        return builder().build();
     }
 
-    public static MockHttpServletRequest init(String method, String requestURLString) {
-        try {
-            var request = Mockito.mock(HttpServletRequest.class, RETURNS_DEEP_STUBS);
-            when(request.getMethod()).thenReturn(method);
-            when(request.getRequestURL()).thenReturn(new StringBuffer(requestURLString));
-            var requestURL = new URI(requestURLString).toURL();
-            when(request.getServerName()).thenReturn(requestURL.getHost());
-            when(request.getServerPort()).thenReturn(requestURL.getPort());
-            when(request.getScheme()).thenReturn(requestURL.getProtocol());
-            return new MockHttpServletRequest(request);
-        } catch (MalformedURLException | URISyntaxException e) {
-            throw new AssertionError("Failed to build MockHttpServletRequest", e);
-        }
+    /**
+     * @return a new {@link MockHttpServletRequest} with a method
+     */
+    public static MockHttpServletRequest init(String method) {
+        return builder().method(method).build();
+    }
+
+    /**
+     * @return a new {@link MockHttpServletRequest} with a method and a complete requestUrl
+     */
+    public static MockHttpServletRequest init(String method, String requestUrl) {
+        return builder().method(method).requestUrl(requestUrl).build();
+    }
+
+    /**
+     * @return a {@link Builder} to build a more complex {@link MockHttpServletRequest}
+     */
+    public static Builder builder() {
+        return new Builder();
     }
 
     // Mocking APIs
@@ -116,8 +145,19 @@ public class MockHttpServletRequest {
         return this;
     }
 
+    public MockHttpServletRequest whenGetHeaderThenReturn(String name, String value) {
+        when(mock.getHeader(name)).thenReturn(value);
+        return this;
+    }
+
     public MockHttpServletRequest whenGetParameterThenReturn(String name, String value) {
         when(mock.getParameter(name)).thenReturn(value);
+        return this;
+    }
+
+    public MockHttpServletRequest whenGetSessionAttributeThenReturn(String key, Object value) {
+        // as we store session attributes to be able to retrieve them, just put it in the map
+        sessionAttributes.put(key, value);
         return this;
     }
 
@@ -139,21 +179,160 @@ public class MockHttpServletRequest {
     }
 
     /**
+     * @return the request attributes held by the request
+     */
+    public Map<String, Object> getAttributes() {
+        return Map.copyOf(attributes);
+    }
+
+    /**
      * @return the session attribute that we get from {@link HttpServletRequest#getSession()} then
      *         {@link HttpSession#getAttribute(String)}
      */
     @SuppressWarnings("unchecked")
     public <R> R getSessionAttributeValue(String name) {
-        if (sessionAttributes == null) {
-            var sessionAttributeNamesCaptor = ArgumentCaptor.forClass(String.class);
-            var sessionAttributeValuesCaptor = ArgumentCaptor.forClass(Object.class);
-            verify(mock.getSession(anyBoolean())).setAttribute(sessionAttributeNamesCaptor.capture(),
-                    sessionAttributeValuesCaptor.capture());
-            sessionAttributes = IntStream.range(0, sessionAttributeNamesCaptor.getAllValues().size())
-                                         .boxed()
-                                         .collect(Collectors.toMap(sessionAttributeNamesCaptor.getAllValues()::get,
-                                                 sessionAttributeValuesCaptor.getAllValues()::get));
-        }
         return (R) sessionAttributes.get(name);
+    }
+
+    public static class Builder {
+
+        protected HttpServletRequest request;
+
+        protected String requestUrl;
+
+        protected String scheme;
+
+        protected String host;
+
+        protected Integer port;
+
+        protected String requestUri;
+
+        protected String contextPath;
+
+        protected String servletPath;
+
+        protected String pathInfo;
+
+        protected Builder() {
+            this.request = Mockito.mock(HttpServletRequest.class, RETURNS_DEEP_STUBS);
+        }
+
+        public Builder method(String method) {
+            when(request.getMethod()).thenReturn(method);
+            return this;
+        }
+
+        public Builder requestUrl(String requestUrl) {
+            if (anyNotNull(scheme, host, port, requestUri, contextPath, servletPath, pathInfo)) {
+                throw new IllegalStateException(
+                        "You can not use requestUrl method and scheme, host, port, requestUri, contextPath, servletPath, pathInfo methods");
+            }
+            this.requestUrl = requestUrl;
+            return this;
+        }
+
+        public Builder scheme(String scheme) {
+            if (anyNotNull(requestUrl)) {
+                throw new IllegalStateException("You can not use scheme method and requestUrl method");
+            }
+            this.scheme = scheme;
+            return this;
+        }
+
+        public Builder host(String host) {
+            if (anyNotNull(requestUrl)) {
+                throw new IllegalStateException("You can not use host method and requestUrl method");
+            }
+            this.host = host;
+            return this;
+        }
+
+        public Builder port(int port) {
+            if (anyNotNull(requestUrl)) {
+                throw new IllegalStateException("You can not use port method and requestUrl method");
+            }
+            this.port = port;
+            return this;
+        }
+
+        public Builder requestUri(String requestUri) {
+            if (anyNotNull(requestUrl, contextPath, servletPath, pathInfo)) {
+                throw new IllegalStateException(
+                        "You can not use requestUri method and requestUrl, contextPath, servletPath, pathInfo methods");
+            }
+            this.requestUri = requestUri;
+            return this;
+        }
+
+        public Builder contextPath(String contextPath) {
+            if (anyNotNull(requestUrl, requestUri)) {
+                throw new IllegalStateException(
+                        "You can not use contextPath method and requestUrl, requestUri methods");
+            }
+            this.contextPath = contextPath;
+            return this;
+        }
+
+        public Builder servletPath(String servletPath) {
+            if (anyNotNull(requestUrl, requestUri)) {
+                throw new IllegalStateException(
+                        "You can not use servletPath method and requestUrl, requestUri methods");
+            }
+            this.servletPath = servletPath;
+            return this;
+        }
+
+        public Builder pathInfo(String pathInfo) {
+            if (anyNotNull(requestUrl, requestUri)) {
+                throw new IllegalStateException("You can not use pathInfo method and requestUrl, requestUri methods");
+            }
+            this.pathInfo = pathInfo;
+            return this;
+        }
+
+        public MockHttpServletRequest build() {
+            try {
+                URI requestURI;
+                URL requestURL;
+                if (requestUrl != null) {
+                    requestURI = new URI(requestUrl);
+                    requestURL = requestURI.toURL();
+                } else if (requestUri != null) {
+                    requestURI = new URI(requestUri);
+                    String baseUrl = String.format("%s://%s:%s", defaultIfNull(scheme, "http"),
+                            defaultIfNull(host, "localhost"), defaultIfNull(port, "8080"));
+                    requestURL = new URI(baseUrl + requestUri).toURL();
+                } else {
+                    var requestUriBuilder = new StringBuilder();
+                    if (contextPath != null) {
+                        requestUriBuilder.append(contextPath);
+                        when(request.getContextPath()).thenReturn(contextPath);
+                    }
+                    if (servletPath != null) {
+                        requestUriBuilder.append(servletPath);
+                        when(request.getServletPath()).thenReturn(servletPath);
+                    }
+                    if (pathInfo != null) {
+                        requestUriBuilder.append(pathInfo);
+                        when(request.getPathInfo()).thenReturn(pathInfo);
+                    }
+                    var requestUriLocal = requestUriBuilder.toString();
+                    requestURI = new URI(requestUriLocal);
+                    String baseUrl = String.format("%s://%s:%s", defaultIfNull(scheme, "http"),
+                            defaultIfNull(host, "localhost"), defaultIfNull(port, "8080"));
+                    requestURL = new URI(baseUrl + requestUriLocal).toURL();
+                }
+                when(request.getScheme()).thenReturn(requestURL.getProtocol());
+                when(request.getServerName()).thenReturn(requestURL.getHost());
+                when(request.getServerPort()).thenReturn(requestURL.getPort());
+                when(request.getRequestURI()).thenReturn(requestURI.getRawPath());
+                when(request.getQueryString()).thenReturn(requestURI.getRawQuery());
+                when(request.getRequestURL()).thenReturn(new StringBuffer(requestURI.toString()));
+                return new MockHttpServletRequest(request);
+            } catch (Exception e) {
+                throw new IllegalStateException("Failed to build MockHttpServletRequest", e);
+            }
+        }
     }
 }

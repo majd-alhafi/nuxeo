@@ -21,9 +21,7 @@ package org.nuxeo.ecm.platform.web.requestcontroller.filter;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.nuxeo.common.http.HttpHeaders.NUXEO_VIRTUAL_HOST;
 import static org.nuxeo.common.http.HttpHeaders.ORIGIN;
@@ -35,11 +33,10 @@ import static org.nuxeo.ecm.platform.web.common.requestcontroller.filter.NuxeoCo
 
 import java.net.URI;
 
-import javax.servlet.http.HttpServletRequest;
-
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.nuxeo.ecm.platform.web.common.MockHttpServletRequest;
 import org.nuxeo.ecm.platform.web.common.requestcontroller.filter.NuxeoCorsCsrfFilter;
 import org.nuxeo.runtime.test.runner.Features;
 import org.nuxeo.runtime.test.runner.FeaturesRunner;
@@ -51,84 +48,86 @@ public class TestNuxeoCorsCsrfFilterMethods {
 
     protected NuxeoCorsCsrfFilter filter;
 
-    protected HttpServletRequest request;
-
     @Before
     public void setUp() {
         filter = new NuxeoCorsCsrfFilter();
-        request = mock(HttpServletRequest.class);
     }
 
     @Test
     public void testSourceURIOrigin() {
-        when(request.getHeader(eq(ORIGIN))).thenReturn("http://example.com:8080");
+        var request = MockHttpServletRequest.init().whenGetHeaderThenReturn(ORIGIN, "http://example.com:8080").mock();
         assertEquals("http://example.com:8080", filter.getSourceURI(request).toASCIIString());
     }
 
     @Test
     public void testSourceURIOriginList() {
-        when(request.getHeader(eq(ORIGIN))).thenReturn("http://example.com:8080 http://other.com");
+        var request = MockHttpServletRequest.init()
+                                            .whenGetHeaderThenReturn(ORIGIN, "http://example.com:8080 http://other.com")
+                                            .mock();
         assertEquals("http://example.com:8080", filter.getSourceURI(request).toASCIIString());
     }
 
     @Test
     public void testSourceURIOriginNullDefault() {
-        doTestSourceURIOriginNull(false);
-    }
-
-    protected void doTestSourceURIOriginNull(boolean allowNullOrigin) {
-        when(request.getHeader(eq(ORIGIN))).thenReturn("null");
+        var request = MockHttpServletRequest.init().whenGetHeaderThenReturn(ORIGIN, "null").mock();
         URI uri = filter.getSourceURI(request);
-        if (allowNullOrigin) {
-            assertNull(uri);
-        } else {
-            assertNotNull(uri);
-            assertEquals("privacy-sensitive:///", uri.toASCIIString());
-        }
+        assertNotNull(uri);
+        assertEquals("privacy-sensitive:///", uri.toASCIIString());
     }
 
     @Test
     public void testSourceURIReferer() {
-        when(request.getHeader(eq(REFERER))).thenReturn("http://example.com:8080/nuxeo");
+        var request = MockHttpServletRequest.init()
+                                            .whenGetHeaderThenReturn(REFERER, "http://example.com:8080/nuxeo")
+                                            .mock();
         assertEquals("http://example.com:8080/nuxeo", filter.getSourceURI(request).toASCIIString());
     }
 
     @SuppressWarnings("boxing")
     @Test
     public void testTargetURI() {
-        when(request.getScheme()).thenReturn("http");
-        when(request.getServerName()).thenReturn("example.com");
-        when(request.getServerPort()).thenReturn(8080);
+        var request = MockHttpServletRequest.init("GET", "http://example.com:8080").mock();
         assertEquals("http://example.com:8080/", filter.getTargetURI(request).toASCIIString());
     }
 
     @Test
     public void testTargetURINuxeoVirtualHostHeader() {
+        var request = MockHttpServletRequest.init()
+                                            .whenGetHeaderThenReturn(NUXEO_VIRTUAL_HOST,
+                                                    "http://example.com:8080/nuxeo/")
+                                            .mock();
         when(request.getHeader(eq(NUXEO_VIRTUAL_HOST))).thenReturn("http://example.com:8080/nuxeo/");
         assertEquals("http://example.com:8080/nuxeo/", filter.getTargetURI(request).toASCIIString());
     }
 
     @Test
     public void testTargetURIForwardedHeaders() {
-        when(request.getHeader(eq(X_FORWARDED_PROTO))).thenReturn("http");
-        when(request.getHeader(eq(X_FORWARDED_HOST))).thenReturn("example.com");
-        when(request.getHeader(eq(X_FORWARDED_PORT))).thenReturn("80");
+        var request = MockHttpServletRequest.init()
+                                            .whenGetHeaderThenReturn(X_FORWARDED_PROTO, "http")
+                                            .whenGetHeaderThenReturn(X_FORWARDED_HOST, "example.com")
+                                            .whenGetHeaderThenReturn(X_FORWARDED_PORT, "80")
+                                            .mock();
         assertEquals("http://example.com/", filter.getTargetURI(request).toASCIIString());
     }
 
     @Test
     public void testTargetURIForwardedHeadersHttps() {
-        when(request.getHeader(eq(X_FORWARDED_PROTO))).thenReturn("https");
-        when(request.getHeader(eq(X_FORWARDED_HOST))).thenReturn("example.com");
-        when(request.getHeader(eq(X_FORWARDED_PORT))).thenReturn("443");
+        var request = MockHttpServletRequest.init()
+                                            .whenGetHeaderThenReturn(X_FORWARDED_PROTO, "https")
+                                            .whenGetHeaderThenReturn(X_FORWARDED_HOST, "example.com")
+                                            .whenGetHeaderThenReturn(X_FORWARDED_PORT, "443")
+                                            .mock();
         assertEquals("https://example.com/", filter.getTargetURI(request).toASCIIString());
     }
 
     @Test
     public void testTargetURIForwardedHeadersCustomPort() {
-        when(request.getHeader(eq(X_FORWARDED_PROTO))).thenReturn("http");
-        when(request.getHeader(eq(X_FORWARDED_HOST))).thenReturn("example.com");
-        when(request.getHeader(eq(X_FORWARDED_PORT))).thenReturn("8080"); // TODO bug in VHH, ignored
+        var request = MockHttpServletRequest.init()
+                                            .whenGetHeaderThenReturn(X_FORWARDED_PROTO, "http")
+                                            .whenGetHeaderThenReturn(X_FORWARDED_HOST, "example.com")
+                                            // TODO bug in VHH, ignored
+                                            .whenGetHeaderThenReturn(X_FORWARDED_PORT, "8080")
+                                            .mock();
         assertEquals("http://example.com/", filter.getTargetURI(request).toASCIIString());
     }
 

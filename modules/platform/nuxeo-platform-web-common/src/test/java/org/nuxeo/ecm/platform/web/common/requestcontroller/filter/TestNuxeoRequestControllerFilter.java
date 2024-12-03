@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2021 Nuxeo (http://nuxeo.com/) and others.
+ * (C) Copyright 2021-2024 Nuxeo (http://nuxeo.com/) and others.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,33 +26,27 @@ import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
-import javax.servlet.ServletOutputStream;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.nuxeo.ecm.core.api.NuxeoException;
-import org.nuxeo.ecm.core.io.DummyServletOutputStream;
+import org.nuxeo.ecm.platform.web.common.MockHttpServletRequest;
+import org.nuxeo.ecm.platform.web.common.MockHttpServletResponse;
 import org.nuxeo.ecm.platform.web.common.requestcontroller.service.RequestControllerManager;
 import org.nuxeo.ecm.platform.web.common.requestcontroller.service.RequestFilterConfig;
 import org.nuxeo.ecm.platform.web.common.requestcontroller.service.RequestFilterConfigImpl;
@@ -107,55 +101,10 @@ public class TestNuxeoRequestControllerFilter {
         chain = new DummyFilterChain();
     }
 
-    protected Map<String, List<String>> mockResponseHeaders(HttpServletResponse response) {
-        Map<String, List<String>> headers = new HashMap<>();
-        // containsHeader
-        doAnswer(i -> {
-            String key = (String) i.getArguments()[0];
-            return headers.get(key);
-        }).when(response).containsHeader(anyString());
-        // setHeader
-        doAnswer(i -> {
-            String key = (String) i.getArguments()[0];
-            String value = (String) i.getArguments()[1];
-            headers.put(key, new ArrayList<>(List.of(value)));
-            return null;
-        }).when(response).setHeader(anyString(), any());
-        // addHeader
-        doAnswer(i -> {
-            String key = (String) i.getArguments()[0];
-            String value = (String) i.getArguments()[1];
-            headers.computeIfAbsent(key, k -> new ArrayList<>()).add(value);
-            return null;
-        }).when(response).addHeader(anyString(), any());
-        // getHeader
-        doAnswer(i -> {
-            String key = (String) i.getArguments()[0];
-            List<String> values = headers.get(key);
-            return values == null || values.isEmpty() ? null : values.get(0);
-        }).when(response).getHeader(anyString());
-        // getHeaders
-        doAnswer(i -> {
-            String key = (String) i.getArguments()[0];
-            List<String> values = headers.get(key);
-            return values == null ? List.of() : values;
-        }).when(response).getHeaders(anyString());
-        // getHeaderNames
-        doAnswer(i -> headers.keySet()).when(response).getHeaderNames();
-        return headers;
-    }
-
-    @SuppressWarnings("resource")
     @Test
     public void testBasics() throws IOException, ServletException {
-        HttpServletRequest request = mock(HttpServletRequest.class);
-        when(request.getMethod()).thenReturn("GET");
-
-        HttpServletResponse response = mock(HttpServletResponse.class);
-        ByteArrayOutputStream bout = new ByteArrayOutputStream();
-        ServletOutputStream out = new DummyServletOutputStream(bout);
-        when(response.getOutputStream()).thenReturn(out);
-        Map<String, List<String>> responseHeaders = mockResponseHeaders(response);
+        var requestHandler = MockHttpServletRequest.init("GET", "http://localhost:8080");
+        var responseHandler = MockHttpServletResponse.init();
 
         RequestFilterConfig filterConfig = new RequestFilterConfigImpl(false, true, true, true, true, "123");
         when(manager.getConfigForRequest(any())).thenReturn(filterConfig);
@@ -163,8 +112,9 @@ public class TestNuxeoRequestControllerFilter {
         managerHeaders.put("MyHeader", "my-header-value");
         when(manager.getResponseHeaders()).thenReturn(managerHeaders);
 
-        filter.doFilter(request, response, chain);
+        filter.doFilter(requestHandler.mock(), responseHandler.mock(), chain);
 
+        var response = responseHandler.mock();
         verify(response, never()).setStatus(anyInt());
         verify(response, never()).sendError(anyInt());
         verify(response, never()).sendError(anyInt(), anyString());
@@ -172,11 +122,12 @@ public class TestNuxeoRequestControllerFilter {
         Map<String, List<String>> expectedResponseHeaders = new HashMap<>();
         expectedResponseHeaders.put("MyHeader", List.of("my-header-value"));
         expectedResponseHeaders.put("Cache-Control", List.of("private, max-age=123"));
-        assertNotNull(responseHeaders.remove("Expires"));
-        assertEquals(expectedResponseHeaders, responseHeaders);
+        var actualResponseHeaders = new HashMap<>(responseHandler.getHeaders());
+        assertNotNull(actualResponseHeaders.remove("Expires"));
+        assertEquals(expectedResponseHeaders, actualResponseHeaders);
 
         assertTrue(chain.hasTransaction);
-        assertEquals("ABC", bout.toString());
+        assertEquals("ABC", responseHandler.getResponseAsString());
     }
 
     @Test
@@ -189,32 +140,27 @@ public class TestNuxeoRequestControllerFilter {
         doTestException(new RuntimeException(), SC_INTERNAL_SERVER_ERROR);
     }
 
-    @SuppressWarnings("resource")
     protected void doTestException(Exception exc, int expectedStatus) throws IOException {
-        HttpServletRequest request = mock(HttpServletRequest.class);
-        when(request.getMethod()).thenReturn("GET");
-
-        HttpServletResponse response = mock(HttpServletResponse.class);
-        ByteArrayOutputStream bout = new ByteArrayOutputStream();
-        ServletOutputStream out = new DummyServletOutputStream(bout);
-        when(response.getOutputStream()).thenReturn(out);
+        var requestHandler = MockHttpServletRequest.init("GET", "http://localhost:8080");
+        var responseHandler = MockHttpServletResponse.init();
 
         RequestFilterConfig filterConfig = new RequestFilterConfigImpl(false, true, true, false, false, "");
         when(manager.getConfigForRequest(any())).thenReturn(filterConfig);
 
         chainException = exc;
         try {
-            filter.doFilter(request, response, chain);
+            filter.doFilter(requestHandler.mock(), responseHandler.mock(), chain);
             fail();
         } catch (ServletException e) {
             assertEquals(exc, e.getCause());
         }
 
+        var response = responseHandler.mock();
         verify(response).setStatus(expectedStatus);
         verify(response, never()).sendError(anyInt());
         verify(response, never()).sendError(anyInt(), anyString());
 
-        assertEquals("", bout.toString()); // output was suppressed
+        assertEquals("", responseHandler.getResponseAsString()); // output was suppressed
     }
 
 }

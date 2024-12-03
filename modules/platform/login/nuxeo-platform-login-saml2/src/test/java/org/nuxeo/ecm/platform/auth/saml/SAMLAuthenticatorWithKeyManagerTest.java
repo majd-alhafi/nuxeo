@@ -91,7 +91,7 @@ public class SAMLAuthenticatorWithKeyManagerTest {
 
         var expected = new ExpectedSAMLMessage<>(
                 """
-                        <saml2p:AuthnRequest xmlns:saml2p="urn:oasis:names:tc:SAML:2.0:protocol" AssertionConsumerServiceURL="null://null/nuxeo/home.html" Destination="http://dummy/SSORedirect" ID="%s" IssueInstant="%s" Version="2.0">
+                        <saml2p:AuthnRequest xmlns:saml2p="urn:oasis:names:tc:SAML:2.0:protocol" AssertionConsumerServiceURL="http://localhost:8080/nuxeo/home.html" Destination="http://dummy/SSORedirect" ID="%s" IssueInstant="%s" Version="2.0">
                           <saml2:Issuer xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion">http://localhost:8080/login</saml2:Issuer>
                           <saml2p:NameIDPolicy Format="urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified" xmlns:saml2p="urn:oasis:names:tc:SAML:2.0:protocol"/>
                         </saml2p:AuthnRequest>
@@ -110,7 +110,7 @@ public class SAMLAuthenticatorWithKeyManagerTest {
         assertTrue(loginURL.startsWith("http://dummy/SSORedirect"));
         var expected = new ExpectedSAMLMessage<>(
                 """
-                        <saml2p:AuthnRequest xmlns:saml2p="urn:oasis:names:tc:SAML:2.0:protocol" AssertionConsumerServiceURL="null://null/nuxeo/home.html" Destination="http://dummy/SSORedirect" ID="%s" IssueInstant="%s" Version="2.0">
+                        <saml2p:AuthnRequest xmlns:saml2p="urn:oasis:names:tc:SAML:2.0:protocol" AssertionConsumerServiceURL="http://localhost:8080/nuxeo/home.html" Destination="http://dummy/SSORedirect" ID="%s" IssueInstant="%s" Version="2.0">
                           <saml2:Issuer xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion">http://localhost:8080/login</saml2:Issuer>
                           <saml2p:NameIDPolicy Format="urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified" xmlns:saml2p="urn:oasis:names:tc:SAML:2.0:protocol"/>
                         </saml2p:AuthnRequest>
