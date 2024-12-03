@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2023 Nuxeo (http://nuxeo.com/) and others.
+ * (C) Copyright 2023-2024 Nuxeo (http://nuxeo.com/) and others.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,8 +26,8 @@ import java.io.IOException;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.nuxeo.ecm.platform.auth.saml.SAMLFeature;
-import org.nuxeo.ecm.platform.auth.saml.mock.MockHttpServletRequest;
-import org.nuxeo.ecm.platform.auth.saml.mock.MockHttpServletResponse;
+import org.nuxeo.ecm.platform.web.common.MockHttpServletRequest;
+import org.nuxeo.ecm.platform.web.common.MockHttpServletResponse;
 import org.nuxeo.runtime.test.runner.Features;
 import org.nuxeo.runtime.test.runner.FeaturesRunner;
 
@@ -41,7 +41,7 @@ public class MetadataServletTest {
     @Test
     public void testDoGet() throws IOException {
         var requestHandler = MockHttpServletRequest.init("GET", "http://localhost:8080/nuxeo/saml/metadata");
-        var responseHandler = MockHttpServletResponse.init().withOutputStream();
+        var responseHandler = MockHttpServletResponse.init();
 
         new MetadataServlet().doGet(requestHandler.mock(), responseHandler.mock());
 
@@ -59,6 +59,6 @@ public class MetadataServletTest {
                   </md:SPSSODescriptor>
                 </md:EntityDescriptor>
                 """;
-        assertEquals(expected, formatXML(responseHandler.getResponseString()));
+        assertEquals(expected, formatXML(responseHandler.getResponseAsString()));
     }
 }

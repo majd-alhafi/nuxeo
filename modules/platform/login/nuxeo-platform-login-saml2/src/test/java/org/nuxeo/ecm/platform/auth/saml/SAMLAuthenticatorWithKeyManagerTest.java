@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2023 Nuxeo (http://nuxeo.com/) and others.
+ * (C) Copyright 2023-2024 Nuxeo (http://nuxeo.com/) and others.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,10 +43,10 @@ import org.junit.runner.RunWith;
 import org.nuxeo.ecm.core.api.DocumentModel;
 import org.nuxeo.ecm.platform.api.login.UserIdentificationInfo;
 import org.nuxeo.ecm.platform.auth.saml.key.KeyManagerFeature;
-import org.nuxeo.ecm.platform.auth.saml.mock.MockHttpServletRequest;
-import org.nuxeo.ecm.platform.auth.saml.mock.MockHttpServletResponse;
 import org.nuxeo.ecm.platform.ui.web.auth.NXAuthConstants;
 import org.nuxeo.ecm.platform.usermanager.UserManager;
+import org.nuxeo.ecm.platform.web.common.MockHttpServletRequest;
+import org.nuxeo.ecm.platform.web.common.MockHttpServletResponse;
 import org.nuxeo.runtime.test.runner.Features;
 import org.nuxeo.runtime.test.runner.FeaturesRunner;
 import org.opensaml.saml.saml2.core.AuthnRequest;
@@ -163,7 +163,6 @@ public class SAMLAuthenticatorWithKeyManagerTest {
         var encodedSamlResponse = encodeSAMLMessage(samlResponse);
 
         var requestHandler = MockHttpServletRequest.init("POST", "http://localhost:8080/login")
-                                                   .withAttributes()
                                                    .whenGetParameterThenReturn(SAML_RESPONSE, encodedSamlResponse)
                                                    .whenGetParameterThenReturn("RelayState", "/relay");
         var responseHandler = MockHttpServletResponse.init();
@@ -194,7 +193,7 @@ public class SAMLAuthenticatorWithKeyManagerTest {
 
         var requestHandler = MockHttpServletRequest.init("POST", "http://localhost:8080/login")
                                                    .whenGetParameterThenReturn(SAML_REQUEST, encodedSamlRequest)
-                                                   .withGetCookieThenReturn(SAML_SESSION_KEY,
+                                                   .whenGetCookieThenReturn(SAML_SESSION_KEY,
                                                            "sessionId|user@dummy|format");
         var responseHandler = MockHttpServletResponse.init();
 
@@ -205,7 +204,7 @@ public class SAMLAuthenticatorWithKeyManagerTest {
     @Test
     public void testLogoutRequest() {
         var requestHandler = MockHttpServletRequest.init()
-                                                   .withGetCookieThenReturn(SAML_SESSION_KEY,
+                                                   .whenGetCookieThenReturn(SAML_SESSION_KEY,
                                                            "sessionId|user@dummy|format");
         var responseHandler = MockHttpServletResponse.init();
 

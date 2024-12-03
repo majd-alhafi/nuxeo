@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2023 Nuxeo (http://nuxeo.com/) and others.
+ * (C) Copyright 2024 Nuxeo (http://nuxeo.com/) and others.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
  * Contributors:
  *     Kevin Leturc <kevin.leturc@hyland.com>
  */
-package org.nuxeo.ecm.platform.auth.saml.mock;
+package org.nuxeo.ecm.platform.web.common;
 
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.verify;
@@ -34,18 +34,25 @@ import org.mockito.Mockito;
 import org.nuxeo.ecm.core.io.DummyServletOutputStream;
 
 /**
- * @since 2023.0
+ * @since 2025.0
  */
 public class MockHttpServletResponse {
 
     protected final HttpServletResponse mock;
 
-    protected ByteArrayOutputStream responseOutputStream;
+    protected final ByteArrayOutputStream responseOutputStream;
 
     protected List<Cookie> cookies;
 
-    protected MockHttpServletResponse(HttpServletResponse request) {
-        mock = request;
+    protected MockHttpServletResponse(HttpServletResponse response) {
+        mock = response;
+        // initialize responseOutputStream
+        try {
+            responseOutputStream = new ByteArrayOutputStream();
+            when(mock.getOutputStream()).thenReturn(new DummyServletOutputStream(responseOutputStream));
+        } catch (IOException e) {
+            throw new AssertionError("Unexpected error", e);
+        }
     }
 
     public static MockHttpServletResponse init() {
@@ -53,19 +60,11 @@ public class MockHttpServletResponse {
         return new MockHttpServletResponse(response);
     }
 
-    public MockHttpServletResponse withOutputStream() {
-        try {
-            responseOutputStream = new ByteArrayOutputStream();
-            when(mock.getOutputStream()).thenReturn(new DummyServletOutputStream(responseOutputStream));
-            return this;
-        } catch (IOException e) {
-            throw new AssertionError("Unexpected error", e);
-        }
-    }
-
     public HttpServletResponse mock() {
         return mock;
     }
+
+    // APIs to get data set to the response
 
     public Cookie getCookie(String name) {
         if (cookies == null) {
@@ -86,10 +85,7 @@ public class MockHttpServletResponse {
         }
     }
 
-    public String getResponseString() {
-        if (responseOutputStream == null) {
-            throw new AssertionError("The response writer wasn't initialized, consider using withOutputStream.");
-        }
+    public String getResponseAsString() {
         return responseOutputStream.toString();
     }
 }

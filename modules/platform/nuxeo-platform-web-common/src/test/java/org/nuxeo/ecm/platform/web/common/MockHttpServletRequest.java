@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2023 Nuxeo (http://nuxeo.com/) and others.
+ * (C) Copyright 2024 Nuxeo (http://nuxeo.com/) and others.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
  * Contributors:
  *     Kevin Leturc <kevin.leturc@hyland.com>
  */
-package org.nuxeo.ecm.platform.auth.saml.mock;
+package org.nuxeo.ecm.platform.web.common;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -27,8 +27,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.net.MalformedURLException;
-import java.net.URL;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -38,18 +40,19 @@ import java.util.stream.IntStream;
 
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
 /**
- * @since 2023.0
+ * @since 2025.0
  */
 public class MockHttpServletRequest {
 
     protected final HttpServletRequest mock;
 
-    protected Map<String, Object> attributes;
+    protected final Map<String, Object> attributes;
 
     protected Map<String, Object> sessionAttributes;
 
@@ -58,6 +61,22 @@ public class MockHttpServletRequest {
     protected MockHttpServletRequest(HttpServletRequest request) {
         mock = request;
         when(mock.getLocale()).thenReturn(Locale.ENGLISH);
+        // initialize attributes
+        attributes = new HashMap<>();
+        doAnswer(invocation -> {
+            String key = invocation.getArgument(0);
+            Object value = invocation.getArgument(1);
+            attributes.put(key, value);
+            return null;
+        }).when(mock).setAttribute(anyString(), any());
+        when(mock.getAttribute(anyString())).thenAnswer(
+                invocation -> attributes.get(invocation.<String> getArgument(0)));
+        when(mock.getAttributeNames()).thenAnswer(invocation -> Collections.enumeration(attributes.keySet()));
+        doAnswer(invocation -> {
+            String key = invocation.getArgument(0);
+            attributes.remove(key);
+            return null;
+        }).when(mock).removeAttribute(anyString());
     }
 
     public static MockHttpServletRequest init() {
@@ -70,43 +89,25 @@ public class MockHttpServletRequest {
             var request = Mockito.mock(HttpServletRequest.class, RETURNS_DEEP_STUBS);
             when(request.getMethod()).thenReturn(method);
             when(request.getRequestURL()).thenReturn(new StringBuffer(requestURLString));
-            var requestURL = new URL(requestURLString);
+            var requestURL = new URI(requestURLString).toURL();
             when(request.getServerName()).thenReturn(requestURL.getHost());
             when(request.getServerPort()).thenReturn(requestURL.getPort());
             when(request.getScheme()).thenReturn(requestURL.getProtocol());
             return new MockHttpServletRequest(request);
-        } catch (MalformedURLException e) {
+        } catch (MalformedURLException | URISyntaxException e) {
             throw new AssertionError("Failed to build MockHttpServletRequest", e);
         }
     }
 
-    public MockHttpServletRequest withAttributes() {
-        attributes = new HashMap<>();
-        doAnswer(invocation -> {
-            String key = invocation.getArgument(0);
-            Object value = invocation.getArgument(1);
-            attributes.put(key, value);
-            return null;
-        }).when(mock).setAttribute(anyString(), any());
-        when(mock.getAttribute(anyString())).thenAnswer(
-                invocation -> attributes.get(invocation.<String> getArgument(0)));
-        doAnswer(invocation -> {
-            String key = invocation.getArgument(0);
-            return attributes.remove(key);
-        }).when(mock).removeAttribute(anyString());
+    // Mocking APIs
+
+    public MockHttpServletRequest whenGetAttributeThenReturn(String key, Object value) {
+        // as we store attributes to be able to retrieve them, just put it in the map
+        attributes.put(key, value);
         return this;
     }
 
-    public MockHttpServletRequest withAttribute(String key, Object value) {
-        mock.setAttribute(key, value);
-        return this;
-    }
-
-    public Object getAttribute(String key) {
-        return mock.getAttribute(key);
-    }
-
-    public MockHttpServletRequest withGetCookieThenReturn(String name, String value) {
+    public MockHttpServletRequest whenGetCookieThenReturn(String name, String value) {
         if (cookies == null) {
             cookies = new ArrayList<>();
             when(mock.getCookies()).thenAnswer(invocation -> cookies.toArray(Cookie[]::new));
@@ -120,10 +121,27 @@ public class MockHttpServletRequest {
         return this;
     }
 
+    /**
+     * @return the mock this handler holds
+     */
     public HttpServletRequest mock() {
         return mock;
     }
 
+    // APIs to get data set to the request
+
+    /**
+     * @return the request attribute that we get from {@link HttpServletRequest#getAttribute(String)}
+     */
+    @SuppressWarnings("unchecked")
+    public <R> R getAttribute(String key) {
+        return (R) attributes.get(key);
+    }
+
+    /**
+     * @return the session attribute that we get from {@link HttpServletRequest#getSession()} then
+     *         {@link HttpSession#getAttribute(String)}
+     */
     @SuppressWarnings("unchecked")
     public <R> R getSessionAttributeValue(String name) {
         if (sessionAttributes == null) {
