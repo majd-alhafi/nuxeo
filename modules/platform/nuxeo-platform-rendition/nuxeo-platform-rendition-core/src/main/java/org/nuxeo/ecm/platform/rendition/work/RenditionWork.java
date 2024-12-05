@@ -45,13 +45,12 @@ import org.nuxeo.runtime.api.Framework;
  * @since 2021.41
  */
 public class RenditionWork extends AbstractWork {
+
     private static final long serialVersionUID = 1L;
 
     private static final Logger log = LogManager.getLogger(RenditionWork.class);
 
     public static final String STORE_NAME = "RenditionCache";
-
-    protected final String documentId;
 
     protected final String renditionName;
 
@@ -67,7 +66,7 @@ public class RenditionWork extends AbstractWork {
         if (doc == null) {
             throw new DocumentNotFoundException("Document not found");
         }
-        this.documentId = doc.getId();
+        this.setDocument(doc.getRepositoryName(), doc.getId());
         this.sourceId = getSourceId(doc);
         this.renditionName = renditionName;
         this.id = sourceId + ":" + renditionName;
@@ -115,13 +114,13 @@ public class RenditionWork extends AbstractWork {
 
     @Override
     public void work() {
-        log.debug("Building a rendition for doc: {}, source: {}, rendition: {}", documentId, sourceId, renditionName);
+        log.debug("Building a rendition for doc: {}, source: {}, rendition: {}", docId, sourceId, renditionName);
         openSystemSession();
         DocumentModel doc;
         try {
-            doc = session.getDocument(new IdRef(documentId));
+            doc = session.getDocument(new IdRef(docId));
         } catch (DocumentNotFoundException e) {
-            inError("Cannot perform a rendition on a deleted document: " + documentId);
+            inError("Cannot perform a rendition on a deleted document: " + docId);
             return;
         }
         RenditionService renditionService = Framework.getService(RenditionService.class);
@@ -186,7 +185,7 @@ public class RenditionWork extends AbstractWork {
     protected void submitWork() {
         WorkManager workManager = Framework.getService(WorkManager.class);
         workManager.schedule(this, false);
-        getStore().putParameter(getId(), "doc", documentId);
+        getStore().putParameter(getId(), "doc", docId);
     }
 
 }
