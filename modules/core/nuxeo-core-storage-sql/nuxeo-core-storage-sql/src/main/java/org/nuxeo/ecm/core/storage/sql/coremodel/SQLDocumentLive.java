@@ -41,7 +41,6 @@ import org.nuxeo.ecm.core.api.model.DocumentPart;
 import org.nuxeo.ecm.core.api.model.Property;
 import org.nuxeo.ecm.core.api.model.PropertyNotFoundException;
 import org.nuxeo.ecm.core.api.model.impl.ComplexProperty;
-import org.nuxeo.ecm.core.blob.DocumentBlobManager;
 import org.nuxeo.ecm.core.lifecycle.LifeCycle;
 import org.nuxeo.ecm.core.lifecycle.LifeCycleService;
 import org.nuxeo.ecm.core.model.BaseSession;
@@ -398,10 +397,6 @@ public class SQLDocumentLive extends BaseDocument<Node> implements SQLDocument {
      * ----- Retention and Hold -----
      */
 
-    protected DocumentBlobManager getDocumentBlobManager() {
-        return Framework.getService(DocumentBlobManager.class);
-    }
-
     @Override
     public void makeFlexibleRecord() {
         makeRecord(true);
@@ -473,7 +468,7 @@ public class SQLDocumentLive extends BaseDocument<Node> implements SQLDocument {
                             + (retainUntil == null ? "null" : retainUntil.toInstant()));
         }
         setPropertyValue(Model.MAIN_RETAIN_UNTIL_PROP, retainUntil);
-        getDocumentBlobManager().notifySetRetainUntil(this, retainUntil);
+        notifySetRetainUntil(this, retainUntil, current);
     }
 
     @Override

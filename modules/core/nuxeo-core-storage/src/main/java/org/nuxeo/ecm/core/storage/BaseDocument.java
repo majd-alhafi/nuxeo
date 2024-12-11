@@ -18,6 +18,7 @@
  */
 package org.nuxeo.ecm.core.storage;
 
+import static org.nuxeo.ecm.core.api.CoreSession.RETAIN_UNTIL_INDETERMINATE;
 import static org.nuxeo.ecm.core.blob.DocumentBlobManagerComponent.BLOBS_CANDIDATE_FOR_DELETION_EVENT;
 import static org.nuxeo.ecm.core.blob.DocumentBlobManagerComponent.MAIN_BLOB_XPATH;
 
@@ -1308,4 +1309,18 @@ public abstract class BaseDocument<T extends StateAccessor> implements Document 
         return retainUntil.after(current);
     }
 
+    protected static DocumentBlobManager getDocumentBlobManager() {
+        return Framework.getService(DocumentBlobManager.class);
+    }
+
+    protected static void notifySetRetainUntil(Document doc, Calendar retainUntil, Calendar previous) {
+        if (!doc.hasLegalHold() && retainUntil != null && retainUntil.compareTo(RETAIN_UNTIL_INDETERMINATE) == 0) {
+            getDocumentBlobManager().notifySetLegalHold(doc, true);
+        } else {
+            if (!doc.hasLegalHold() && previous != null && previous.compareTo(RETAIN_UNTIL_INDETERMINATE) == 0) {
+                getDocumentBlobManager().notifySetLegalHold(doc, false);
+            }
+            getDocumentBlobManager().notifySetRetainUntil(doc, retainUntil);
+        }
+    }
 }

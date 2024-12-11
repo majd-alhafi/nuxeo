@@ -52,7 +52,6 @@ import org.nuxeo.ecm.core.api.model.PropertyNotFoundException;
 import org.nuxeo.ecm.core.api.model.ReadOnlyPropertyException;
 import org.nuxeo.ecm.core.api.model.VersionNotModifiableException;
 import org.nuxeo.ecm.core.api.model.impl.ComplexProperty;
-import org.nuxeo.ecm.core.blob.DocumentBlobManager;
 import org.nuxeo.ecm.core.blob.SimpleManagedBlob;
 import org.nuxeo.ecm.core.lifecycle.LifeCycle;
 import org.nuxeo.ecm.core.lifecycle.LifeCycleService;
@@ -550,10 +549,6 @@ public class DBSDocument extends BaseDocument<State> {
         accessor.setBlob(managedBlob.withKeyAndDigest(newKey, newDigest), false);
     }
 
-    protected DocumentBlobManager getDocumentBlobManager() {
-        return Framework.getService(DocumentBlobManager.class);
-    }
-
     @Override
     public void makeFlexibleRecord() {
         makeRecord(true);
@@ -618,7 +613,7 @@ public class DBSDocument extends BaseDocument<State> {
         }
         docState.put(KEY_RETAIN_UNTIL, retainUntil);
         DBSDocument doc = session.getDocument(docState);
-        getDocumentBlobManager().notifySetRetainUntil(doc, retainUntil);
+        notifySetRetainUntil(doc, retainUntil, current);
     }
 
     @Override
