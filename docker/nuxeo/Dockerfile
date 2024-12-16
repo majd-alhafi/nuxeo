@@ -80,7 +80,7 @@ RUN --mount=type=secret,id=nuxeo-public,target=/etc/yum.repos.d/nuxeo-public.rep
     libwpd-tools \
     # Required by ExifTool to extract binary metadata from LibreOffice documents
     perl-Archive-Zip \
-    perl-Image-ExifTool \
+    perl-Image-ExifTool-12.70-1.el9 \
     poppler-utils \
     # ps is not included in the base oraclelinux image
     procps \
