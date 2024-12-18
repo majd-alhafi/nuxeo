@@ -38,6 +38,7 @@ import org.nuxeo.ecm.automation.AutomationService;
 import org.nuxeo.ecm.automation.OperationChain;
 import org.nuxeo.ecm.automation.OperationContext;
 import org.nuxeo.ecm.automation.jaxrs.io.documents.PaginableDocumentModelListImpl;
+import org.nuxeo.ecm.collections.api.CollectionManager;
 import org.nuxeo.ecm.core.api.Blob;
 import org.nuxeo.ecm.core.api.CoreSession;
 import org.nuxeo.ecm.core.api.DocumentModel;
@@ -71,6 +72,29 @@ public class EasyShare extends ModuleRoot {
 
     private static final String SHARE_DOC_TYPE = "EasyShareFolder";
 
+    /**
+     * Returns {@code true} if the given {@code doc} is either:
+     * <ul>
+     * <li>A member of the given {@code sharedDoc} collection.</li>
+     * <li>A descendant of a foldersish member of the given {@code sharedDoc} collection.</li>
+     * <li>A descendant of the given {@code sharedDoc} folderish document.</li>
+     * </ul>
+     */
+    public static boolean isSharedDocument(CoreSession session, DocumentModel sharedDoc, DocumentModel doc) {
+        var collectionManager = Framework.getService(CollectionManager.class);
+        if (collectionManager.isInCollection(sharedDoc, doc, session)) {
+            return true;
+        }
+        var ancestors = session.getParentDocuments(doc.getRef());
+        for (var ancestor : ancestors) {
+            if (collectionManager.isInCollection(sharedDoc, ancestor, session)
+                    || sharedDoc.getRef().equals(ancestor.getRef())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     @GET
     public Object doGet() {
         return getView("index");
@@ -91,7 +115,12 @@ public class EasyShare extends ModuleRoot {
                 if (!isShareValid(docShare)) {
                     return getView("expired").arg("docShare", docShare);
                 }
-                DocumentModel document = session.getDocument(new IdRef(docId));
+                IdRef documentRef = new IdRef(docId);
+                DocumentModel document = session.getDocument(documentRef);
+                // accept the Easyshare folder itself or a shared document
+                if (!docShareRef.equals(documentRef) && !isSharedDocument(session, docShare, document)) {
+                    return notFound();
+                }
                 String query = buildQuery(document);
                 if (query == null) {
                     return getView("denied");
@@ -219,6 +248,9 @@ public class EasyShare extends ModuleRoot {
                     return notFound();
                 }
                 DocumentModel doc = session.getDocument(docRef);
+                if (!isSharedDocument(session, docShare, doc)) {
+                    return notFound();
+                }
                 try (OperationContext ctx = new OperationContext(session)) {
                     Blob blob = doc.getAdapter(BlobHolder.class).getBlob();
 
