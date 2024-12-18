@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="org.nuxeo.easyshare.type.contrib" version="1.0">
+  <extension target="org.nuxeo.ecm.platform.types.TypeService" point="types">
+    <type id="EasyShareFolder">
+      <label>EasyShareFolder</label>
+      <category>Collaborative</category>
+      <icon>/img/easyshare.png</icon>
+      <bigIcon>/img/easyshare_100.png</bigIcon>
+      <description>EasyShareFolder.description</description>
+      <default-view>view_documents</default-view>
+    </type>
+  </extension>
+</component>

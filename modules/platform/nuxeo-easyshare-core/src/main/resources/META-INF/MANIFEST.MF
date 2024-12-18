@@ -6,7 +6,10 @@ Bundle-ActivationPolicy: lazy
 Bundle-ClassPath: .
 Bundle-Version: 1.0.0
 Bundle-Name: nuxeo-easyshare-core
-Nuxeo-Component: OSGI-INF/extensions.xml, OSGI-INF/easyshare-contrib.xml
+Nuxeo-Component: OSGI-INF/easyshare-contrib.xml,
+ OSGI-INF/easyshare-core-contrib.xml,
+ OSGI-INF/easyshare-notification-contrib.xml,
+ OSGI-INF/easyshare-type-contrib.xml
 Bundle-ManifestVersion: 2
 Bundle-SymbolicName: nuxeo-easyshare-core
 Bundle-RequiredExecutionEnvironment: JavaSE-1.7
