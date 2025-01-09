@@ -297,7 +297,8 @@ public class TestCompareCoreWithES {
                 // Note that there are differences between ES and VCS:
                 // ES version document has a path and is searchable with startswith
                 "SELECT * from Document WHERE ecm:path STARTSWITH '/nomatch' ORDER BY dc:title",
-                "SELECT * from Document WHERE ecm:path STARTSWITH '/folder' AND ecm:path != '/folder' ORDER BY dc:title",
+                "SELECT * from Document WHERE ecm:path STARTSWITH '/folder' ORDER BY dc:title",
+                "SELECT * from Document WHERE ecm:path STARTSWITH '/folder/' ORDER BY dc:title",
                 "SELECT * FROM Document WHERE ecm:path STARTSWITH '/' AND ecm:isVersion = 0 ORDER BY dc:title", });
     }
 

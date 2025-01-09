@@ -103,7 +103,7 @@ public class ITNuxeoIdempotentRequestTest {
     protected int getNumberOfChildren() {
         return httpClient.buildGetRequest("/search/execute")
                          .addQueryParameter("query", QUERY_CHILDREN)
-                         .executeAndThen(new JsonNodeHandler(), node -> node.get("entries").size() - 1);
+                         .executeAndThen(new JsonNodeHandler(), node -> node.get("entries").size());
     }
 
     protected String fetchDocumentTile(String id) {
