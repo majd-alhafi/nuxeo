@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2024 Nuxeo (http://nuxeo.com/) and others.
+ * (C) Copyright 2024-2025 Nuxeo (http://nuxeo.com/) and others.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -91,7 +91,7 @@ public class IdpKeyStoreFeature implements RunnerFeature {
             KEY_STORE_PASSWORD).generateKeyPair(KEY_STORE_ENTRY_IDP_KEY, KEY_STORE_ENTRY_IDP_PASSWORD).build();
 
     @Override
-    public void start(FeaturesRunner runner) throws Exception {
+    public void initialize(FeaturesRunner runner) throws Exception {
         SAMLAuthenticationProvider.initOpenSAML();
 
         // load default idp metadata file

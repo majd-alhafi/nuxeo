@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2006-2007 Nuxeo SA (http://nuxeo.com/) and others.
+ * (C) Copyright 2006-2025 Nuxeo (http://nuxeo.com/) and others.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,50 +16,87 @@
  * Contributors:
  *     Nuxeo - initial API and implementation
  */
-
 package org.nuxeo.ecm.platform.ui.web.auth.service;
+
+import static org.apache.commons.lang3.BooleanUtils.toBooleanDefaultIfNull;
+import static org.apache.commons.lang3.ObjectUtils.defaultIfNull;
 
 import java.util.HashMap;
 import java.util.Map;
+
 import org.nuxeo.common.xmap.annotation.XNode;
 import org.nuxeo.common.xmap.annotation.XNodeMap;
 import org.nuxeo.common.xmap.annotation.XObject;
-import org.nuxeo.ecm.core.api.NuxeoException;
 import org.nuxeo.ecm.platform.ui.web.auth.interfaces.NuxeoAuthenticationPlugin;
+import org.nuxeo.runtime.model.Descriptor;
 
 @XObject("authenticationPlugin")
-public class AuthenticationPluginDescriptor {
+public class AuthenticationPluginDescriptor implements Descriptor {
 
     @XNode("@name")
-    private String name;
+    protected String name;
 
     @XNode("@enabled")
-    boolean enabled = true;
+    protected Boolean enabled;
 
     @XNode("@class")
-    Class<NuxeoAuthenticationPlugin> className;
+    protected Class<NuxeoAuthenticationPlugin> className;
 
-    private Boolean needStartingURLSaving;
+    protected Boolean needStartingURLSaving;
 
     @XNodeMap(value = "parameters/parameter", key = "@name", type = HashMap.class, componentType = String.class)
-    Map<String, String> parameters = new HashMap<>();
+    protected Map<String, String> parameters = new HashMap<>();
 
-    private Boolean stateful;
+    protected Boolean stateful;
 
-    public Class<NuxeoAuthenticationPlugin> getClassName() {
-        return className;
+    @Override
+    public String getId() {
+        return name;
     }
 
+    public String getName() {
+        return name;
+    }
+
+    /**
+     * @deprecated since 2025.0, use {@link #isEnabled()} ()} instead
+     */
+    @Deprecated(since = "2025.0", forRemoval = true)
     public boolean getEnabled() {
-        return enabled;
+        return isEnabled();
+    }
+
+    public boolean isEnabled() {
+        return toBooleanDefaultIfNull(enabled, true);
     }
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
     }
 
-    public String getName() {
-        return name;
+    public Class<NuxeoAuthenticationPlugin> getClassName() {
+        return className;
+    }
+
+    public void setClassName(Class<NuxeoAuthenticationPlugin> className) {
+        this.className = className;
+    }
+
+    /**
+     * @deprecated since 2025.0, use {@link #isNeedStartingURLSaving()} instead
+     */
+    @Deprecated(since = "2025.0", forRemoval = true)
+    public boolean getNeedStartingURLSaving() {
+        return isNeedStartingURLSaving();
+    }
+
+    public boolean isNeedStartingURLSaving() {
+        return toBooleanDefaultIfNull(needStartingURLSaving, false);
+    }
+
+    @XNode("needStartingURLSaving")
+    public void setNeedStartingURLSaving(boolean needStartingURLSaving) {
+        this.needStartingURLSaving = Boolean.valueOf(needStartingURLSaving);
     }
 
     public Map<String, String> getParameters() {
@@ -70,27 +107,16 @@ public class AuthenticationPluginDescriptor {
         this.parameters = parameters;
     }
 
-    public boolean getNeedStartingURLSaving() {
-        if (needStartingURLSaving != null) {
-            return needStartingURLSaving;
-        }
-        return false;
-    }
-
+    /**
+     * @deprecated since 2025.0, use {@link #isStateful()} instead
+     */
+    @Deprecated(since = "2025.0", forRemoval = true)
     public boolean getStateful() {
-        if (stateful != null) {
-            return stateful;
-        }
-        return Boolean.valueOf(getNeedStartingURLSaving());
+        return isStateful();
     }
 
-    public void setClassName(Class<NuxeoAuthenticationPlugin> className) {
-        this.className = className;
-    }
-
-    @XNode("needStartingURLSaving")
-    public void setNeedStartingURLSaving(boolean needStartingURLSaving) {
-        this.needStartingURLSaving = Boolean.valueOf(needStartingURLSaving);
+    public boolean isStateful() {
+        return toBooleanDefaultIfNull(stateful, isNeedStartingURLSaving());
     }
 
     @XNode("stateful")
@@ -98,4 +124,17 @@ public class AuthenticationPluginDescriptor {
         this.stateful = Boolean.valueOf(stateful);
     }
 
+    @Override
+    public AuthenticationPluginDescriptor merge(Descriptor o) {
+        var other = (AuthenticationPluginDescriptor) o;
+        var merged = new AuthenticationPluginDescriptor();
+        merged.name = name; // we merge based on name, so no need for merging it
+        merged.enabled = defaultIfNull(other.enabled, enabled);
+        merged.className = defaultIfNull(other.className, className);
+        merged.needStartingURLSaving = defaultIfNull(other.needStartingURLSaving, needStartingURLSaving);
+        merged.parameters = new HashMap<>(parameters);
+        merged.parameters.putAll(other.parameters);
+        merged.stateful = defaultIfNull(other.stateful, stateful);
+        return merged;
+    }
 }

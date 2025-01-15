@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2006-2017 Nuxeo (http://nuxeo.com/) and others.
+ * (C) Copyright 2006-2025 Nuxeo (http://nuxeo.com/) and others.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -74,8 +74,8 @@ public class TestAuthPlugins {
         PluggableAuthenticationService service = getAuthService();
         AuthenticationPluginDescriptor plugin = service.getDescriptor("ANONYMOUS_AUTH");
 
-        assertFalse(plugin.getStateful());
-        assertTrue(plugin.getNeedStartingURLSaving());
+        assertFalse(plugin.isStateful());
+        assertTrue(plugin.isNeedStartingURLSaving());
         assertSame(Class.forName("org.nuxeo.ecm.platform.ui.web.auth.DummyAuthenticator"), plugin.getClassName());
     }
 

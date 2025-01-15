@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2023 Nuxeo (http://nuxeo.com/) and others.
+ * (C) Copyright 2023-2025 Nuxeo (http://nuxeo.com/) and others.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,7 +30,6 @@ import java.net.URI;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.Map;
 import java.util.function.Function;
 import java.util.zip.Inflater;
 import java.util.zip.InflaterInputStream;
@@ -45,17 +44,20 @@ import javax.xml.transform.stream.StreamResult;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
-import org.junit.runners.model.FrameworkMethod;
 import org.nuxeo.directory.test.DirectoryFeature;
 import org.nuxeo.ecm.core.test.CoreFeature;
 import org.nuxeo.ecm.core.test.DefaultRepositoryInit;
 import org.nuxeo.ecm.core.test.annotations.Granularity;
 import org.nuxeo.ecm.core.test.annotations.RepositoryConfig;
 import org.nuxeo.ecm.platform.test.UserManagerFeature;
+import org.nuxeo.ecm.platform.ui.web.auth.service.PluggableAuthenticationService;
+import org.nuxeo.runtime.api.Framework;
 import org.nuxeo.runtime.test.runner.Deploy;
 import org.nuxeo.runtime.test.runner.Features;
 import org.nuxeo.runtime.test.runner.FeaturesRunner;
 import org.nuxeo.runtime.test.runner.RunnerFeature;
+import org.nuxeo.runtime.test.runner.RuntimeFeature;
+import org.nuxeo.runtime.test.runner.RuntimeHarness;
 import org.nuxeo.runtime.test.runner.WithFrameworkProperty;
 import org.opensaml.core.xml.config.XMLObjectProviderRegistrySupport;
 import org.opensaml.core.xml.io.Marshaller;
@@ -75,30 +77,33 @@ import net.shibboleth.utilities.java.support.codec.EncodingException;
 @Features({ CoreFeature.class, DirectoryFeature.class, UserManagerFeature.class })
 @RepositoryConfig(init = DefaultRepositoryInit.class, cleanup = Granularity.METHOD)
 @Deploy("org.nuxeo.ecm.platform.login.saml2")
+@Deploy("org.nuxeo.ecm.platform.web.common")
 @WithFrameworkProperty(name = ENTITY_ID, value = "http://localhost:8080/login")
 public class SAMLFeature implements RunnerFeature {
 
     public static final String ALGORITHM_SIGNATURE_RSA_SHA256 = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256";
 
-    protected SAMLAuthenticationProvider samlAuthenticationProvider;
-
     @Override
-    public void configure(FeaturesRunner runner, Binder binder) {
-        binder.bind(SAMLAuthenticationProvider.class).toProvider(() -> samlAuthenticationProvider);
-    }
-
-    @Override
-    public void beforeSetup(FeaturesRunner runner, FrameworkMethod method, Object test) throws Exception {
+    public void start(FeaturesRunner runner) throws Exception {
+        // compute metadata file path
         String metadata;
         if (runner.getFeature(IdpKeyStoreFeature.class) != null) {
             metadata = getClass().getResource("/idp-meta-with-certificate.xml").toURI().getPath();
         } else {
             metadata = getClass().getResource("/idp-meta.xml").toURI().getPath();
         }
-        Map<String, String> params = Map.of("metadata", metadata);
+        Framework.getProperties().put("nuxeo.test.saml.authenticator.metadata", metadata);
+        // deploy saml authenticator contrib
+        RuntimeHarness harness = runner.getFeature(RuntimeFeature.class).getHarness();
+        harness.deployContrib("org.nuxeo.ecm.platform.login.saml2.test",
+                "OSGI-INF/saml-authenticator-test-contrib.xml");
+    }
 
-        samlAuthenticationProvider = new SAMLAuthenticationProvider();
-        samlAuthenticationProvider.initPlugin(params);
+    @Override
+    public void configure(FeaturesRunner runner, Binder binder) {
+        binder.bind(SAMLAuthenticationProvider.class)
+              .toProvider(() -> (SAMLAuthenticationProvider) Framework.getService(PluggableAuthenticationService.class)
+                                                                      .getPlugin("SAML_AUTH"));
     }
 
     public static <O extends SAMLObject> void assertSAMLMessage(ExpectedSAMLMessage<O> expectedMessage,

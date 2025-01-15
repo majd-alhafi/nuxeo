@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2006-2017 Nuxeo (http://nuxeo.com/) and others.
+ * (C) Copyright 2006-2025 Nuxeo (http://nuxeo.com/) and others.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -957,7 +957,7 @@ public class NuxeoAuthenticationFilter implements Filter {
                 throw new NullPointerException("Could not find plugin for name '" + pluginName + "'");
             }
             if (Boolean.TRUE.equals(plugin.needLoginPrompt(httpRequest))) {
-                if (descriptor.getNeedStartingURLSaving()) {
+                if (descriptor.isNeedStartingURLSaving()) {
                     saveRequestedURLBeforeRedirect(httpRequest, httpResponse);
                     httpResponse = new HttpServletResponseWrapper(httpResponse) {
                         @Override
@@ -1057,10 +1057,10 @@ public class NuxeoAuthenticationFilter implements Filter {
 
         AuthenticationPluginDescriptor desc = service.getDescriptor(pluginName);
 
-        if (desc.getStateful()) {
+        if (desc.isStateful()) {
             return true;
         } else {
-            return desc.getNeedStartingURLSaving();
+            return desc.isNeedStartingURLSaving();
         }
     }
 
