@@ -158,13 +158,11 @@
       <artifactId>nuxeo-scan-importer-package</artifactId>
       <type>zip</type>
     </dependency>
-    <!--
     <dependency>
       <groupId>org.nuxeo.packages</groupId>
       <artifactId>nuxeo-scim-v2-package</artifactId>
       <type>zip</type>
     </dependency>
-    -->
     <dependency>
       <groupId>org.nuxeo.packages</groupId>
       <artifactId>nuxeo-shibboleth-login-package</artifactId>
