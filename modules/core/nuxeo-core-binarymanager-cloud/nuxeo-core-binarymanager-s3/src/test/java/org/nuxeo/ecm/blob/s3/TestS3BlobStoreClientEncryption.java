@@ -18,10 +18,8 @@
  */
 package org.nuxeo.ecm.blob.s3;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.nuxeo.ecm.blob.s3.S3BlobStoreConfiguration.KEYSTORE_LEGACY_MODE_PROPERTY;
 import static org.nuxeo.ecm.blob.s3.S3BlobStoreConfiguration.KEYSTORE_FILE_PROPERTY;
+import static org.nuxeo.ecm.blob.s3.S3BlobStoreConfiguration.KEYSTORE_LEGACY_MODE_PROPERTY;
 import static org.nuxeo.ecm.blob.s3.S3BlobStoreConfiguration.KEYSTORE_PASS_PROPERTY;
 import static org.nuxeo.ecm.blob.s3.S3BlobStoreConfiguration.PRIVKEY_ALIAS_PROPERTY;
 import static org.nuxeo.ecm.blob.s3.S3BlobStoreConfiguration.PRIVKEY_PASS_PROPERTY;
@@ -33,11 +31,6 @@ import java.nio.file.Path;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Test;
-import org.nuxeo.ecm.core.blob.BlobProvider;
-import org.nuxeo.ecm.core.blob.BlobStore;
-import org.nuxeo.ecm.core.blob.BlobStoreBlobProvider;
-import org.nuxeo.ecm.core.blob.TestAbstractBlobStore;
 import org.nuxeo.runtime.api.Framework;
 import org.nuxeo.runtime.test.runner.Features;
 import org.nuxeo.runtime.test.runner.WithFrameworkProperty;
@@ -50,30 +43,14 @@ import org.nuxeo.runtime.test.runner.WithFrameworkProperty;
 @WithFrameworkProperty(name = SYSTEM_PROPERTY_PREFIX + "." + PRIVKEY_PASS_PROPERTY, value = "test_s3")
 @WithFrameworkProperty(name = SYSTEM_PROPERTY_PREFIX + "." + KEYSTORE_LEGACY_MODE_PROPERTY, value = "true")
 @Features(S3BlobProviderFeature.class)
-public class TestS3BlobStoreClientEncryption extends TestAbstractBlobStore {
+public class TestS3BlobStoreClientEncryption extends TestAbstractS3BlobStoreClientEncryption {
 
     @BeforeClass
     public static void beforeClass() throws URISyntaxException {
         URL url = Thread.currentThread().getContextClassLoader().getResource("test.keystore");
+        assert url != null;
         Framework.getProperties()
                  .put(SYSTEM_PROPERTY_PREFIX + "." + KEYSTORE_FILE_PROPERTY, Path.of(url.toURI()).toString());
-    }
-
-    @Test
-    public void testFlags() {
-        assertFalse(bp.isTransactional());
-        assertFalse(bp.isRecordMode());
-        assertTrue(bs.getKeyStrategy().useDeDuplication());
-        assertTrue(((S3BlobProvider) bp).config.useClientSideEncryption);
-        BlobProvider srcProvider = blobManager.getBlobProvider("other");
-        BlobStore srcStore = ((BlobStoreBlobProvider) srcProvider).store; // no need for unwrap
-        assertFalse(bs.copyBlobIsOptimized(srcStore));
-    }
-
-    @Override
-    public boolean checkSizeOfGCedFiles() {
-        // cannot check file size with client-side encryption
-        return false;
     }
 
     @AfterClass
