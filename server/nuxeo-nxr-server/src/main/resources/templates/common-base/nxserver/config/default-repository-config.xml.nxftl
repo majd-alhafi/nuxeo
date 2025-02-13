@@ -15,7 +15,6 @@
       <class>${nuxeo.core.binarymanager}</class>
       <property name="path">${nuxeo.binarystores.root}/fulltext</property>
       <property name="key">${nuxeo.core.binarymanager_key}</property>
-      <property name="bucket_prefix">${nuxeo.vcs.fulltext.storedInBlobPrefix}</property>
     </blobprovider>
   </extension>
   <extension target="org.nuxeo.ecm.core.blob.DocumentBlobManager" point="configuration">
