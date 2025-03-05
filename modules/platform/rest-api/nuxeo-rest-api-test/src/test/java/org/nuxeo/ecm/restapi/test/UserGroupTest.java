@@ -51,11 +51,13 @@ import org.nuxeo.ecm.platform.usermanager.NuxeoGroupImpl;
 import org.nuxeo.ecm.platform.usermanager.NuxeoPrincipalImpl;
 import org.nuxeo.ecm.platform.usermanager.UserManager;
 import org.nuxeo.ecm.platform.usermanager.io.NuxeoGroupJsonWriter;
+import org.nuxeo.ecm.restapi.server.jaxrs.usermanager.UserRootObject;
 import org.nuxeo.http.test.HttpClientTestRule;
 import org.nuxeo.http.test.handler.HttpStatusCodeHandler;
 import org.nuxeo.http.test.handler.JsonNodeHandler;
 import org.nuxeo.runtime.test.runner.Features;
 import org.nuxeo.runtime.test.runner.FeaturesRunner;
+import org.nuxeo.runtime.test.runner.WithFrameworkProperty;
 import org.nuxeo.runtime.transaction.TransactionHelper;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -227,6 +229,26 @@ public class UserGroupTest extends BaseUserTest {
                   .executeAndConsume(new HttpStatusCodeHandler(),
                           // Then I get a 400
                           status -> assertEquals(SC_BAD_REQUEST, status.intValue()));
+    }
+
+    @Test
+    @WithFrameworkProperty(name = UserRootObject.ALLOW_EMPTY_PASSWORD_PROP, value = "true")
+    public void itReturnsA201OnEmptyPassword() throws IOException {
+        // Given a user with an empty password
+        // When i POST it on the user endpoint
+        httpClient.buildPostRequest("/user")
+                  .entity(getPrincipalAsJson(new NuxeoPrincipalImpl("emptyPassword")))
+                  .executeAndConsume(new HttpStatusCodeHandler(),
+                          // Then I get a 201
+                          status -> assertEquals(SC_CREATED, status.intValue()));
+
+        // Given a user with a blank password
+        // When i POST it on the user endpoint
+        httpClient.buildPostRequest("/user")
+                  .entity(getPrincipalAsJson(new NuxeoPrincipalImpl("blankPassword"), ""))
+                  .executeAndConsume(new HttpStatusCodeHandler(),
+                          // Then I get a 201
+                          status -> assertEquals(SC_CREATED, status.intValue()));
     }
 
     @Test

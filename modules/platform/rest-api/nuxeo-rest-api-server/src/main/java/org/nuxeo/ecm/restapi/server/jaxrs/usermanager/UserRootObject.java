@@ -45,6 +45,11 @@ public class UserRootObject extends AbstractUMRootObject<NuxeoPrincipal> {
 
     public static final String PAGE_PROVIDER_NAME = "nuxeo_principals_listing";
 
+    /**
+     * @since 2025.1
+     */
+    public static final String ALLOW_EMPTY_PASSWORD_PROP = "nuxeo.user.password.empty.enabled";
+
     @Override
     protected NuxeoPrincipal getArtifact(String id) {
         return um.getPrincipal(id);
@@ -60,7 +65,9 @@ public class UserRootObject extends AbstractUMRootObject<NuxeoPrincipal> {
         checkCurrentUserCanCreateArtifact(principal);
         checkPrincipalDoesNotAlreadyExists(principal, um);
         checkPrincipalHasAName(principal);
-        checkPrincipalHasAPassword(principal);
+        if (!Framework.isBooleanPropertyTrue(ALLOW_EMPTY_PASSWORD_PROP)) {
+            checkPrincipalHasAPassword(principal);
+        }
     }
 
     @Override
